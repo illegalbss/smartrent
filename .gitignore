@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# environment
+.env
+.env.local
+.env.*.local
+
+# local file storage (interim, until Supabase Storage is wired up)
+uploads/
+
+# build output
+build/
+dist/
+
+# editor/tooling
+.claude/
+.vscode/
+.DS_Store
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
