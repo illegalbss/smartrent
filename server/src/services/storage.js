@@ -5,8 +5,11 @@ const crypto = require("crypto");
 // Interim local-disk storage until the Supabase service role key is
 // available. Swap this module for a Supabase Storage-backed implementation
 // (upload/getSignedUrl/remove) without touching documentController.js.
-
-const UPLOAD_ROOT = path.join(__dirname, "..", "..", "uploads");
+//
+// On Vercel the deployed bundle is read-only outside of /tmp, and /tmp itself
+// is wiped between invocations — uploads here will NOT persist in production.
+// This only prevents a hard crash (EROFS) until real object storage is wired up.
+const UPLOAD_ROOT = process.env.VERCEL ? path.join("/tmp", "uploads") : path.join(__dirname, "..", "..", "uploads");
 
 function saveBuffer(tenantId, originalName, buffer) {
   const dir = path.join(UPLOAD_ROOT, tenantId);
