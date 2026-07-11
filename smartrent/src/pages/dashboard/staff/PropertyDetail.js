@@ -9,11 +9,11 @@ import {
   FaBuilding,
   FaCamera,
   FaUsers,
-  FaMoneyBillWave,
-  FaExclamationTriangle,
 } from "react-icons/fa";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
 import { Card, Badge, StatCard, EmptyState, formatNaira } from "../../../components/dashboard/UiKit";
+import { IncomeOverviewChart, PaymentStatusChart } from "../../../components/dashboard/FinanceCharts";
+import FinanceReportSection from "../../../components/dashboard/FinanceReportSection";
 import Modal from "../../../components/Modal";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import FormField from "../../../components/FormField";
@@ -171,11 +171,18 @@ export default function PropertyDetail() {
             </label>
           </div>
 
-          <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="mb-5 grid grid-cols-2 gap-4">
             <StatCard label="Occupancy" value={`${property.stats.occupancyRate}%`} icon={FaDoorOpen} sub={`${property.stats.occupiedRooms}/${property.stats.totalRooms} rooms occupied`} />
             <StatCard label="Tenants" value={property.stats.tenantCount} icon={FaUsers} />
-            <StatCard label="Total Collected" value={formatNaira(property.stats.totalCollected)} icon={FaMoneyBillWave} />
-            <StatCard label="Outstanding" value={formatNaira(property.stats.totalOwing)} icon={FaExclamationTriangle} />
+          </div>
+
+          <div className="mb-5 grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <IncomeOverviewChart series={property.stats.monthlySeries} />
+            <PaymentStatusChart byStatus={property.stats.byStatus} />
+          </div>
+
+          <div className="mb-5">
+            <FinanceReportSection finance={property.stats} title="Finance Report" />
           </div>
 
           <div className="mb-5 flex items-center justify-between">

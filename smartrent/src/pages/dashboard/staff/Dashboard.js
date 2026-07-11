@@ -6,99 +6,23 @@ import {
   FaUsers,
   FaCommentDots,
   FaArrowRight,
-  FaMoneyBillWave,
-  FaCalendarCheck,
-  FaExclamationTriangle,
   FaDoorOpen,
 } from "react-icons/fa";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
-import { Card, StatCard, Badge, EmptyState, formatDate, formatNaira } from "../../../components/dashboard/UiKit";
+import { StatCard, Badge, EmptyState } from "../../../components/dashboard/UiKit";
+import { IncomeOverviewChart, PaymentStatusChart } from "../../../components/dashboard/FinanceCharts";
+import FinanceReportSection from "../../../components/dashboard/FinanceReportSection";
 import AuthImage from "../../../components/AuthImage";
 import { STAFF_NAV } from "../../../config/navigation";
 import { dashboardApi } from "../../../api/dashboard";
 import { propertiesApi } from "../../../api/properties";
 import { useAuth } from "../../../context/AuthContext";
 
-const STATUS_TONE = { PAID: "green", PARTIAL: "amber", OWING: "red", NO_PAYMENTS: "ink" };
-const STATUS_LABEL = { PAID: "Paid", PARTIAL: "Partial", OWING: "Owing", NO_PAYMENTS: "No payments yet" };
-const PIE_COLORS = { PAID: "#26b568", PARTIAL: "#d97706", OWING: "#dc2626" };
-
 const OWNERSHIP_FILTERS = [
   { value: "ALL", label: "Both" },
   { value: "ORGANIZATION", label: "Organization" },
   { value: "PERSONAL", label: "Personal" },
 ];
-
-function IncomeOverviewChart({ series }) {
-  return (
-    <Card title="Income Overview" className="lg:col-span-2">
-      <div className="h-56">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={series} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="incomeFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#26b568" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="#26b568" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#8792a2" }} axisLine={false} tickLine={false} />
-            <YAxis
-              tick={{ fontSize: 11, fill: "#8792a2" }}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={(v) => (v >= 1000 ? `₦${(v / 1000).toFixed(0)}k` : `₦${v}`)}
-              width={50}
-            />
-            <Tooltip formatter={(value) => formatNaira(value)} labelStyle={{ color: "#1f2329" }} />
-            <Area type="monotone" dataKey="total" stroke="#26b568" strokeWidth={2.5} fill="url(#incomeFill)" name="Collected" />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </Card>
-  );
-}
-
-function PaymentStatusChart({ byStatus }) {
-  const segments = ["PAID", "PARTIAL", "OWING"].map((key) => ({ key, count: byStatus[key].count }));
-  const total = segments.reduce((sum, s) => sum + s.count, 0);
-
-  return (
-    <Card title="Payment Status">
-      {total === 0 ? (
-        <p className="text-sm text-ink-400">No payments recorded yet.</p>
-      ) : (
-        <>
-          <div className="h-40">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={segments} dataKey="count" nameKey="key" innerRadius={45} outerRadius={70} paddingAngle={2}>
-                  {segments.map((s) => (
-                    <Cell key={s.key} fill={PIE_COLORS[s.key]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value, name) => [value, STATUS_LABEL[name]]} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-2 space-y-1.5">
-            {segments.map((s) => (
-              <div key={s.key} className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1.5 text-ink-500">
-                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PIE_COLORS[s.key] }} />
-                  {STATUS_LABEL[s.key]}
-                </span>
-                <span className="font-semibold text-ink-800">
-                  {s.count} ({total > 0 ? Math.round((s.count / total) * 100) : 0}%)
-                </span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </Card>
-  );
-}
 
 function PropertyThumb({ property }) {
   const icon = (
@@ -239,54 +163,7 @@ export default function StaffDashboard() {
             )}
           </div>
 
-          <div>
-            <h2 className="mb-3 text-sm font-bold text-ink-900">Finance Report</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <StatCard
-                label="Total Collected"
-                value={formatNaira(data.finance.totalCollected)}
-                icon={FaMoneyBillWave}
-                sub={`Manual ${formatNaira(data.finance.bySource.MANUAL.total)} · Paystack ${formatNaira(data.finance.bySource.PAYSTACK.total)}`}
-              />
-              <StatCard label="Collected This Month" value={formatNaira(data.finance.collectedThisMonth)} icon={FaCalendarCheck} />
-              <StatCard label="Outstanding (Owing)" value={formatNaira(data.finance.totalOwing)} icon={FaExclamationTriangle} sub={`${data.finance.byStatus.OWING.count} payment(s) marked owing`} />
-            </div>
-
-            <Card title="Tenants in Arrears" className="mt-4">
-              {data.finance.tenantsInArrears.length === 0 ? (
-                <p className="text-sm text-ink-400">No tenants currently owing or unpaid — every occupied room is up to date.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[520px] text-left text-sm">
-                    <thead className="border-b border-ink-100 text-xs font-bold uppercase text-ink-400">
-                      <tr>
-                        <th className="py-2 pr-4">Tenant</th>
-                        <th className="py-2 pr-4">Room</th>
-                        <th className="py-2 pr-4">Last Payment</th>
-                        <th className="py-2 pr-4">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-ink-100">
-                      {data.finance.tenantsInArrears.map((t) => (
-                        <tr key={t.tenantId}>
-                          <td className="py-2.5 pr-4">
-                            <Link to={`/dashboard/staff/tenants/${t.tenantId}`} className="font-semibold text-brand-600 hover:text-brand-700">
-                              {t.name}
-                            </Link>
-                          </td>
-                          <td className="py-2.5 pr-4 text-ink-700">{t.room || "—"}</td>
-                          <td className="py-2.5 pr-4 text-ink-700">{formatDate(t.lastPaymentDate)}</td>
-                          <td className="py-2.5 pr-4">
-                            <Badge tone={STATUS_TONE[t.lastPaymentStatus]}>{STATUS_LABEL[t.lastPaymentStatus]}</Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </Card>
-          </div>
+          <FinanceReportSection finance={data.finance} title="Finance Report (All Properties)" />
 
           <div className="flex flex-wrap gap-3">
             <Link

@@ -1,4 +1,5 @@
 const prisma = require("../config/prisma");
+const { summarizePayments } = require("../services/financeSummary");
 
 function emptyBucket() {
   return { totalProperties: 0, totalRooms: 0, occupiedRooms: 0, vacantRooms: 0, occupancyRate: 0 };
@@ -9,36 +10,6 @@ async function buildFinanceSummary(landlordId) {
     where: { landlordId },
     select: { amount: true, status: true, datePaid: true, source: true },
   });
-
-  const byStatus = {
-    PAID: { count: 0, total: 0 },
-    PARTIAL: { count: 0, total: 0 },
-    OWING: { count: 0, total: 0 },
-  };
-  const bySource = {
-    MANUAL: { count: 0, total: 0 },
-    PAYSTACK: { count: 0, total: 0 },
-  };
-
-  const now = new Date();
-  let totalCollected = 0;
-  let collectedThisMonth = 0;
-
-  for (const payment of payments) {
-    const amount = Number(payment.amount);
-    byStatus[payment.status].count += 1;
-    byStatus[payment.status].total += amount;
-
-    if (payment.status !== "OWING") {
-      totalCollected += amount;
-      bySource[payment.source].count += 1;
-      bySource[payment.source].total += amount;
-      const paidDate = new Date(payment.datePaid);
-      if (paidDate.getFullYear() === now.getFullYear() && paidDate.getMonth() === now.getMonth()) {
-        collectedThisMonth += amount;
-      }
-    }
-  }
 
   // Tenants whose most recent payment is missing, partial, or flagged owing — currently in arrears.
   const tenantsWithRooms = await prisma.tenant.findMany({
@@ -61,30 +32,7 @@ async function buildFinanceSummary(landlordId) {
       lastPaymentDate: t.payments[0]?.datePaid || null,
     }));
 
-  // Last 6 months of collections, oldest first, for the income trend chart.
-  const monthlySeries = [];
-  for (let i = 5; i >= 0; i--) {
-    const monthDate = new Date(Date.UTC(now.getFullYear(), now.getMonth() - i, 1));
-    const label = monthDate.toLocaleDateString("en-NG", { month: "short", year: "2-digit", timeZone: "UTC" });
-    const total = payments
-      .filter((p) => {
-        if (p.status === "OWING") return false;
-        const d = new Date(p.datePaid);
-        return d.getUTCFullYear() === monthDate.getUTCFullYear() && d.getUTCMonth() === monthDate.getUTCMonth();
-      })
-      .reduce((sum, p) => sum + Number(p.amount), 0);
-    monthlySeries.push({ month: label, total: Math.round(total * 100) / 100 });
-  }
-
-  return {
-    totalCollected: Math.round(totalCollected * 100) / 100,
-    collectedThisMonth: Math.round(collectedThisMonth * 100) / 100,
-    totalOwing: Math.round(byStatus.OWING.total * 100) / 100,
-    byStatus,
-    bySource,
-    monthlySeries,
-    tenantsInArrears: inArrears,
-  };
+  return { ...summarizePayments(payments), tenantsInArrears: inArrears };
 }
 
 // Occupancy across all properties, grouped by ownership type (Organization vs. Personal).

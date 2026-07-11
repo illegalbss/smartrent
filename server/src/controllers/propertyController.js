@@ -1,6 +1,7 @@
 const { validationResult } = require("express-validator");
 const prisma = require("../config/prisma");
 const storage = require("../services/storage");
+const { summarizePayments } = require("../services/financeSummary");
 
 function withPhotoFlag(property) {
   const { photoUrl, ...rest } = property;
@@ -42,35 +43,49 @@ async function listProperties(req, res, next) {
   }
 }
 
-// Per-property mini-dashboard: occupancy and collections scoped to just this property.
+// Per-property mini-dashboard: occupancy and a full finance report (collections,
+// trend, arrears) scoped to just this property's rooms — never combined with
+// any other property, so a landlord always knows which building a number belongs to.
 async function buildPropertyStats(property) {
   const roomIds = property.rooms.map((r) => r.id);
   const totalRooms = property.rooms.length;
   const occupiedRooms = property.rooms.filter((r) => r.status === "OCCUPIED").length;
 
-  const [payments, tenantCount] = await Promise.all([
+  const [payments, tenantsWithRooms] = await Promise.all([
     roomIds.length
-      ? prisma.payment.findMany({ where: { roomId: { in: roomIds } }, select: { amount: true, status: true } })
+      ? prisma.payment.findMany({ where: { roomId: { in: roomIds } }, select: { amount: true, status: true, datePaid: true, source: true } })
       : Promise.resolve([]),
-    roomIds.length ? prisma.tenant.count({ where: { roomId: { in: roomIds } } }) : Promise.resolve(0),
+    roomIds.length
+      ? prisma.tenant.findMany({
+          where: { roomId: { in: roomIds } },
+          select: {
+            id: true,
+            name: true,
+            room: { select: { roomNumber: true } },
+            payments: { orderBy: { datePaid: "desc" }, take: 1, select: { status: true, datePaid: true } },
+          },
+        })
+      : Promise.resolve([]),
   ]);
 
-  let totalCollected = 0;
-  let totalOwing = 0;
-  for (const p of payments) {
-    const amount = Number(p.amount);
-    if (p.status === "OWING") totalOwing += amount;
-    else totalCollected += amount;
-  }
+  const tenantsInArrears = tenantsWithRooms
+    .filter((t) => !t.payments[0] || t.payments[0].status !== "PAID")
+    .map((t) => ({
+      tenantId: t.id,
+      name: t.name,
+      room: t.room?.roomNumber || null,
+      lastPaymentStatus: t.payments[0]?.status || "NO_PAYMENTS",
+      lastPaymentDate: t.payments[0]?.datePaid || null,
+    }));
 
   return {
     totalRooms,
     occupiedRooms,
     vacantRooms: totalRooms - occupiedRooms,
     occupancyRate: totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 1000) / 10 : 0,
-    tenantCount,
-    totalCollected: Math.round(totalCollected * 100) / 100,
-    totalOwing: Math.round(totalOwing * 100) / 100,
+    tenantCount: tenantsWithRooms.length,
+    ...summarizePayments(payments),
+    tenantsInArrears,
   };
 }
 
