@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
 import Logo from "./Logo";
-import heroBuilding from "../assets/hero-building.jpg";
+import loginBuilding from "../assets/login-building.jpg";
 
 export default function AuthLayout({ children, tagline }) {
   return (
@@ -21,12 +21,12 @@ export default function AuthLayout({ children, tagline }) {
         </div>
       </div>
 
-      <div className="relative hidden w-1/2 items-center justify-center lg:flex">
-        <img src={heroBuilding} alt="" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-700/90 to-brand-500/80" />
-        <div className="relative z-10 flex flex-col items-center px-10 text-center">
+      <div className="relative hidden w-1/2 items-end justify-center lg:flex">
+        <img src={loginBuilding} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        <div className="relative z-10 flex flex-col items-center px-10 pb-16 text-center">
           <h2 className="text-2xl font-bold text-white">Manage Your Rental Property Easily</h2>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-brand-50">
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/85">
             {tagline || "Connect, pay rent, and track everything in one secure place."}
           </p>
         </div>
