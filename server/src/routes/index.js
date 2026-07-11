@@ -12,6 +12,7 @@ const dashboardRoutes = require("./dashboardRoutes");
 const paystackRoutes = require("./paystackRoutes");
 const maintenanceRoutes = require("./maintenanceRoutes");
 const noticeRoutes = require("./noticeRoutes");
+const houseRulesRoutes = require("./houseRulesRoutes");
 
 const router = Router();
 
@@ -29,5 +30,6 @@ router.use(dashboardRoutes);
 router.use(paystackRoutes);
 router.use(maintenanceRoutes);
 router.use(noticeRoutes);
+router.use(houseRulesRoutes);
 
 module.exports = router;

@@ -12,6 +12,9 @@ router.post(
   [
     body("title").trim().notEmpty().withMessage("A title is required."),
     body("message").trim().notEmpty().withMessage("A message is required."),
+    body("propertyId").optional({ nullable: true, checkFalsy: true }).isString(),
+    body("tenantId").optional({ nullable: true, checkFalsy: true }).isString(),
+    body("severity").optional().isIn(["INFO", "WARNING", "VACATE_NOTICE"]).withMessage("Invalid severity."),
   ],
   createNotice
 );

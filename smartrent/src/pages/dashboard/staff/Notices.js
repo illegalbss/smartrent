@@ -1,24 +1,121 @@
 import { useEffect, useState } from "react";
 import { FaPlus, FaBullhorn, FaTrash } from "react-icons/fa";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
-import { Card, EmptyState, formatDate } from "../../../components/dashboard/UiKit";
+import { Card, Badge, EmptyState, formatDate } from "../../../components/dashboard/UiKit";
 import Modal from "../../../components/Modal";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import FormField from "../../../components/FormField";
 import { STAFF_NAV } from "../../../config/navigation";
 import { noticesApi } from "../../../api/notices";
+import { propertiesApi } from "../../../api/properties";
+import { tenantsApi } from "../../../api/tenants";
+
+const SEVERITY_TONE = { INFO: "brand", WARNING: "amber", VACATE_NOTICE: "red" };
+const SEVERITY_LABEL = { INFO: "Info", WARNING: "Warning", VACATE_NOTICE: "Notice to Vacate" };
 
 function NoticeForm({ onSubmit, onCancel, submitting, error }) {
-  const [form, setForm] = useState({ title: "", message: "" });
+  const [form, setForm] = useState({ title: "", message: "", target: "ALL", propertyId: "", tenantId: "", severity: "INFO" });
+  const [properties, setProperties] = useState([]);
+  const [tenants, setTenants] = useState([]);
+
+  useEffect(() => {
+    propertiesApi.list().then((res) => setProperties(res.data)).catch(() => {});
+    tenantsApi.list({ limit: 200 }).then((res) => setTenants(res.data)).catch(() => {});
+  }, []);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    onSubmit({
+      title: form.title,
+      message: form.message,
+      severity: form.severity,
+      propertyId: form.target === "PROPERTY" ? form.propertyId : undefined,
+      tenantId: form.target === "TENANT" ? form.tenantId : undefined,
+    });
+  }
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSubmit(form);
-      }}
-    >
+    <form onSubmit={handleSubmit}>
       <FormField label="Title" name="title" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} required />
+
+      <div className="mb-4">
+        <label className="mb-1.5 block text-sm font-semibold text-ink-700">Send to</label>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { value: "ALL", label: "Everyone" },
+            { value: "PROPERTY", label: "One Property" },
+            { value: "TENANT", label: "One Tenant" },
+          ].map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, target: t.value }))}
+              className={`rounded-xl border py-2 text-xs font-bold transition ${
+                form.target === t.value ? "border-brand-500 bg-brand-50 text-brand-700" : "border-ink-200 text-ink-500 hover:border-brand-300"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {form.target === "PROPERTY" && (
+        <div className="mb-4">
+          <label className="mb-1.5 block text-sm font-semibold text-ink-700">Property</label>
+          <select
+            value={form.propertyId}
+            onChange={(e) => setForm((f) => ({ ...f, propertyId: e.target.value }))}
+            required
+            className="w-full rounded-xl border border-ink-200 bg-ink-50 px-3.5 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-100"
+          >
+            <option value="">Select a property…</option>
+            {properties.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {form.target === "TENANT" && (
+        <div className="mb-4">
+          <label className="mb-1.5 block text-sm font-semibold text-ink-700">Tenant</label>
+          <select
+            value={form.tenantId}
+            onChange={(e) => setForm((f) => ({ ...f, tenantId: e.target.value }))}
+            required
+            className="w-full rounded-xl border border-ink-200 bg-ink-50 px-3.5 py-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-100"
+          >
+            <option value="">Select a tenant…</option>
+            {tenants.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name} {t.room ? `— ${t.room.roomNumber} (${t.room.propertyName})` : "(Unassigned)"}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <div className="mb-4">
+        <label className="mb-1.5 block text-sm font-semibold text-ink-700">Type</label>
+        <div className="grid grid-cols-3 gap-2">
+          {["INFO", "WARNING", "VACATE_NOTICE"].map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, severity: s }))}
+              className={`rounded-xl border py-2 text-xs font-bold transition ${
+                form.severity === s ? "border-brand-500 bg-brand-50 text-brand-700" : "border-ink-200 text-ink-500 hover:border-brand-300"
+              }`}
+            >
+              {SEVERITY_LABEL[s]}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="mb-4">
         <label className="mb-1.5 block text-sm font-semibold text-ink-700">Message</label>
         <textarea
@@ -59,11 +156,11 @@ export default function Notices() {
 
   useEffect(load, []);
 
-  async function handleSubmit(form) {
+  async function handleSubmit(payload) {
     setSubmitting(true);
     setFormError("");
     try {
-      await noticesApi.create(form);
+      await noticesApi.create(payload);
       setShowModal(false);
       load();
     } catch (err) {
@@ -85,7 +182,7 @@ export default function Notices() {
   }
 
   return (
-    <DashboardShell navItems={STAFF_NAV} title="Notices" subtitle="Announcements broadcast to every tenant in your portfolio">
+    <DashboardShell navItems={STAFF_NAV} title="Notices" subtitle="Announcements — to everyone, one property, or one tenant">
       <div className="mb-5 flex justify-end">
         <button
           onClick={() => setShowModal(true)}
@@ -98,7 +195,7 @@ export default function Notices() {
       {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</div>}
 
       {notices && notices.length === 0 && (
-        <EmptyState icon={FaBullhorn} title="No notices posted yet" body="Post an announcement and every tenant in your portfolio will see it on their dashboard." />
+        <EmptyState icon={FaBullhorn} title="No notices posted yet" body="Post an announcement to everyone, one property, or one tenant." />
       )}
 
       {notices && notices.length > 0 && (
@@ -115,19 +212,25 @@ export default function Notices() {
                 </button>
               </div>
               <p className="mt-3 text-sm text-ink-700">{n.message}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Badge tone={SEVERITY_TONE[n.severity]}>{SEVERITY_LABEL[n.severity]}</Badge>
+                <Badge tone="ink">
+                  {n.tenant ? `To: ${n.tenant.name}` : n.property ? `Property: ${n.property.name}` : "All Properties"}
+                </Badge>
+              </div>
             </Card>
           ))}
         </div>
       )}
 
-      <Modal open={showModal} title="Post a Notice" onClose={() => setShowModal(false)}>
+      <Modal open={showModal} title="Post a Notice" onClose={() => setShowModal(false)} maxWidth="max-w-xl">
         <NoticeForm onSubmit={handleSubmit} onCancel={() => setShowModal(false)} submitting={submitting} error={formError} />
       </Modal>
 
       <ConfirmDialog
         open={!!deleteTarget}
         title="Delete this notice?"
-        body={`"${deleteTarget?.title}" will be removed and tenants will no longer see it.`}
+        body={`"${deleteTarget?.title}" will be removed and can no longer be seen.`}
         confirmLabel="Delete"
         danger
         onConfirm={handleDelete}

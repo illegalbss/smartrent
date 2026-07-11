@@ -14,12 +14,14 @@ import TenantDetail from "./pages/dashboard/staff/TenantDetail";
 import PaymentLedger from "./pages/dashboard/staff/PaymentLedger";
 import StaffMaintenance from "./pages/dashboard/staff/Maintenance";
 import StaffNotices from "./pages/dashboard/staff/Notices";
+import StaffHouseRules from "./pages/dashboard/staff/HouseRules";
 import Complaints from "./pages/dashboard/staff/Complaints";
 import Secretaries from "./pages/dashboard/staff/Secretaries";
 import TenantDashboard from "./pages/dashboard/tenant/Dashboard";
 import TenantPayments from "./pages/dashboard/tenant/Payments";
 import TenantMaintenance from "./pages/dashboard/tenant/Maintenance";
 import TenantNotices from "./pages/dashboard/tenant/Notices";
+import TenantHouseRules from "./pages/dashboard/tenant/HouseRules";
 import TenantComplaints from "./pages/dashboard/tenant/Complaints";
 import Settings from "./pages/dashboard/Settings";
 import NotFound from "./pages/NotFound";
@@ -102,6 +104,14 @@ export default function App() {
           }
         />
         <Route
+          path="/dashboard/staff/house-rules"
+          element={
+            <ProtectedRoute role={STAFF_ROLES}>
+              <StaffHouseRules />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/dashboard/staff/complaints"
           element={
             <ProtectedRoute role={STAFF_ROLES}>
@@ -155,6 +165,14 @@ export default function App() {
           element={
             <ProtectedRoute role="tenant">
               <TenantNotices />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/tenant/house-rules"
+          element={
+            <ProtectedRoute role="tenant">
+              <TenantHouseRules />
             </ProtectedRoute>
           }
         />

@@ -77,6 +77,7 @@ model Landlord {
   auditLogs           PaymentAuditLog[]
   maintenanceRequests MaintenanceRequest[]
   notices             Notice[]
+  houseRules          HouseRules[]
 
   @@map("landlords")
 }
@@ -110,8 +111,10 @@ model Property {
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
-  landlord Landlord @relation(fields: [landlordId], references: [id], onDelete: Cascade)
-  rooms    Room[]
+  landlord   Landlord     @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+  rooms      Room[]
+  notices    Notice[]
+  houseRules HouseRules[]
 
   @@index([landlordId])
   @@map("properties")
@@ -159,6 +162,7 @@ model Tenant {
   documents           Document[]
   complaints          Complaint[]
   maintenanceRequests MaintenanceRequest[]
+  notices             Notice[]
 
   @@index([landlordId])
   @@index([roomId])
@@ -275,18 +279,54 @@ model MaintenanceRequest {
   @@map("maintenance_requests")
 }
 
-// One-way broadcast from Landlord/Secretary to every tenant in the portfolio.
+enum NoticeSeverity {
+  INFO
+  WARNING
+  VACATE_NOTICE
+}
+
+// A message from Landlord/Secretary. Exactly one target: everyone in the
+// portfolio (propertyId and tenantId both null), everyone at one property
+// (propertyId set), or one specific tenant (tenantId set) — e.g. a personal
+// warning or notice to vacate that shouldn't be seen by anyone else.
 model Notice {
-  id            String    @id @default(cuid())
-  landlordId    String    @map("landlord_id")
+  id            String         @id @default(cuid())
+  landlordId    String         @map("landlord_id")
+  propertyId    String?        @map("property_id")
+  tenantId      String?        @map("tenant_id")
+  severity      NoticeSeverity @default(INFO)
   title         String
   message       String
-  createdById   String    @map("created_by_id")
-  createdByRole ActorRole @map("created_by_role")
-  createdAt     DateTime  @default(now()) @map("created_at")
+  createdById   String         @map("created_by_id")
+  createdByRole ActorRole      @map("created_by_role")
+  createdAt     DateTime       @default(now()) @map("created_at")
 
-  landlord Landlord @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+  landlord Landlord  @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([landlordId])
+  @@index([propertyId])
+  @@index([tenantId])
   @@map("notices")
+}
+
+// A standing reference document, not a timestamped alert — general house
+// rules (propertyId null) or an override specific to one property.
+model HouseRules {
+  id            String    @id @default(cuid())
+  landlordId    String    @map("landlord_id")
+  propertyId    String?   @map("property_id")
+  content       String
+  updatedById   String    @map("updated_by_id")
+  updatedByRole ActorRole @map("updated_by_role")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  landlord Landlord  @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([landlordId])
+  @@index([propertyId])
+  @@map("house_rules")
 }
