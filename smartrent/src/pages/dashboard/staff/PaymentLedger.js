@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FaChevronLeft, FaChevronRight, FaMoneyBillWave } from "react-icons/fa";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
-import { Badge, EmptyState, StatCard, formatDate, formatNaira } from "../../../components/dashboard/UiKit";
+import { Card, Badge, EmptyState, StatCard, formatDate, formatNaira } from "../../../components/dashboard/UiKit";
 import { STAFF_NAV } from "../../../config/navigation";
 import { paymentsApi } from "../../../api/payments";
 
@@ -75,36 +75,61 @@ export default function PaymentLedger() {
           {ledger.payments.length === 0 ? (
             <EmptyState icon={FaMoneyBillWave} title="No payments recorded this month" body="Switch months using the arrows above, or record a payment from a tenant's detail page." />
           ) : (
-            <div className="overflow-x-auto rounded-2xl border border-ink-100 bg-white shadow-card">
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="border-b border-ink-100 bg-ink-50 text-xs font-bold uppercase tracking-wide text-ink-500">
-                  <tr>
-                    <th className="px-4 py-3">Date Paid</th>
-                    <th className="px-4 py-3">Tenant</th>
-                    <th className="px-4 py-3">Room</th>
-                    <th className="px-4 py-3">Amount</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Source</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-ink-100">
-                  {ledger.payments.map((p) => (
-                    <tr key={p.id} className="hover:bg-ink-50/60">
-                      <td className="px-4 py-3 text-ink-700">{formatDate(p.datePaid)}</td>
-                      <td className="px-4 py-3 font-semibold text-brand-600">{p.tenantName}</td>
-                      <td className="px-4 py-3 text-ink-700">{p.room}</td>
-                      <td className="px-4 py-3 font-semibold text-ink-800">{formatNaira(p.amount)}</td>
-                      <td className="px-4 py-3">
-                        <Badge tone={STATUS_TONE[p.status]}>{p.status}</Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge tone={p.source === "PAYSTACK" ? "brand" : "ink"}>{p.source === "PAYSTACK" ? "Paystack" : "Manual"}</Badge>
-                      </td>
+            <>
+              {/* Mobile: stacked cards — a wide table can't fit a narrow screen without cutting columns off. */}
+              <div className="space-y-3 sm:hidden">
+                {ledger.payments.map((p) => (
+                  <Card key={p.id} className="!p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="font-semibold text-brand-600">{p.tenantName}</div>
+                        <div className="text-xs text-ink-400">{p.room}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-ink-900">{formatNaira(p.amount)}</div>
+                        <div className="text-xs text-ink-400">{formatDate(p.datePaid)}</div>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex gap-2 border-t border-ink-100 pt-3">
+                      <Badge tone={STATUS_TONE[p.status]}>{p.status}</Badge>
+                      <Badge tone={p.source === "PAYSTACK" ? "brand" : "ink"}>{p.source === "PAYSTACK" ? "Paystack" : "Manual"}</Badge>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Desktop/tablet: full table. */}
+              <div className="hidden overflow-x-auto rounded-2xl border border-ink-100 bg-white shadow-card sm:block">
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  <thead className="border-b border-ink-100 bg-ink-50 text-xs font-bold uppercase tracking-wide text-ink-500">
+                    <tr>
+                      <th className="px-4 py-3">Date Paid</th>
+                      <th className="px-4 py-3">Tenant</th>
+                      <th className="px-4 py-3">Room</th>
+                      <th className="px-4 py-3">Amount</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Source</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-ink-100">
+                    {ledger.payments.map((p) => (
+                      <tr key={p.id} className="hover:bg-ink-50/60">
+                        <td className="px-4 py-3 text-ink-700">{formatDate(p.datePaid)}</td>
+                        <td className="px-4 py-3 font-semibold text-brand-600">{p.tenantName}</td>
+                        <td className="px-4 py-3 text-ink-700">{p.room}</td>
+                        <td className="px-4 py-3 font-semibold text-ink-800">{formatNaira(p.amount)}</td>
+                        <td className="px-4 py-3">
+                          <Badge tone={STATUS_TONE[p.status]}>{p.status}</Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge tone={p.source === "PAYSTACK" ? "brand" : "ink"}>{p.source === "PAYSTACK" ? "Paystack" : "Manual"}</Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </>
       )}

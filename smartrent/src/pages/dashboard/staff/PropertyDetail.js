@@ -1,8 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { FaArrowLeft, FaPlus, FaEdit, FaTrash, FaDoorOpen, FaBuilding, FaCamera } from "react-icons/fa";
+import {
+  FaArrowLeft,
+  FaPlus,
+  FaEdit,
+  FaTrash,
+  FaDoorOpen,
+  FaBuilding,
+  FaCamera,
+  FaUsers,
+  FaMoneyBillWave,
+  FaExclamationTriangle,
+} from "react-icons/fa";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
-import { Card, Badge, EmptyState, formatNaira } from "../../../components/dashboard/UiKit";
+import { Card, Badge, StatCard, EmptyState, formatNaira } from "../../../components/dashboard/UiKit";
 import Modal from "../../../components/Modal";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import FormField from "../../../components/FormField";
@@ -158,6 +169,13 @@ export default function PropertyDetail() {
               <FaCamera size={11} /> {photoUploading ? "Uploading…" : property.hasPhoto ? "Change Photo" : "Upload Property Photo"}
               <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} disabled={photoUploading} />
             </label>
+          </div>
+
+          <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <StatCard label="Occupancy" value={`${property.stats.occupancyRate}%`} icon={FaDoorOpen} sub={`${property.stats.occupiedRooms}/${property.stats.totalRooms} rooms occupied`} />
+            <StatCard label="Tenants" value={property.stats.tenantCount} icon={FaUsers} />
+            <StatCard label="Total Collected" value={formatNaira(property.stats.totalCollected)} icon={FaMoneyBillWave} />
+            <StatCard label="Outstanding" value={formatNaira(property.stats.totalOwing)} icon={FaExclamationTriangle} />
           </div>
 
           <div className="mb-5 flex items-center justify-between">

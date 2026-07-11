@@ -28,6 +28,38 @@ async function listProperties(req, res, next) {
   }
 }
 
+// Per-property mini-dashboard: occupancy and collections scoped to just this property.
+async function buildPropertyStats(property) {
+  const roomIds = property.rooms.map((r) => r.id);
+  const totalRooms = property.rooms.length;
+  const occupiedRooms = property.rooms.filter((r) => r.status === "OCCUPIED").length;
+
+  const [payments, tenantCount] = await Promise.all([
+    roomIds.length
+      ? prisma.payment.findMany({ where: { roomId: { in: roomIds } }, select: { amount: true, status: true } })
+      : Promise.resolve([]),
+    roomIds.length ? prisma.tenant.count({ where: { roomId: { in: roomIds } } }) : Promise.resolve(0),
+  ]);
+
+  let totalCollected = 0;
+  let totalOwing = 0;
+  for (const p of payments) {
+    const amount = Number(p.amount);
+    if (p.status === "OWING") totalOwing += amount;
+    else totalCollected += amount;
+  }
+
+  return {
+    totalRooms,
+    occupiedRooms,
+    vacantRooms: totalRooms - occupiedRooms,
+    occupancyRate: totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 1000) / 10 : 0,
+    tenantCount,
+    totalCollected: Math.round(totalCollected * 100) / 100,
+    totalOwing: Math.round(totalOwing * 100) / 100,
+  };
+}
+
 async function getProperty(req, res, next) {
   try {
     const property = await prisma.property.findFirst({
@@ -46,7 +78,9 @@ async function getProperty(req, res, next) {
       },
     });
     if (!property) return res.status(404).json({ success: false, error: "Property not found." });
-    res.json({ success: true, data: withPhotoFlag(property) });
+
+    const stats = await buildPropertyStats(property);
+    res.json({ success: true, data: { ...withPhotoFlag(property), stats } });
   } catch (err) {
     next(err);
   }

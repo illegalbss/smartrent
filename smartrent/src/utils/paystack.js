@@ -18,7 +18,9 @@ function loadPaystackScript() {
 
 // Opens the Paystack inline popup. onSuccess receives the transaction reference,
 // which the caller must still verify server-side before treating it as paid.
-export async function payWithPaystack({ publicKey, email, amount, reference, onSuccess, onClose }) {
+// `channels` narrows the popup to a specific payment method (card/bank_transfer/ussd) —
+// Paystack itself handles all of these within the one integration.
+export async function payWithPaystack({ publicKey, email, amount, reference, channels, onSuccess, onClose }) {
   await loadPaystackScript();
 
   const handler = window.PaystackPop.setup({
@@ -27,6 +29,7 @@ export async function payWithPaystack({ publicKey, email, amount, reference, onS
     amount,
     ref: reference,
     currency: "NGN",
+    ...(channels && { channels }),
     callback: (response) => onSuccess(response.reference),
     onClose,
   });

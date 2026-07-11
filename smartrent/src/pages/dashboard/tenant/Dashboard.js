@@ -1,13 +1,20 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaHome, FaCalendarAlt, FaMoneyBillWave, FaArrowRight, FaCheckCircle } from "react-icons/fa";
+import { FaHome, FaCalendarAlt, FaMoneyBillWave, FaArrowRight, FaCheckCircle, FaCreditCard, FaUniversity, FaMobileAlt } from "react-icons/fa";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
 import { Card, StatCard, formatDate, formatNaira } from "../../../components/dashboard/UiKit";
+import Modal from "../../../components/Modal";
 import { TENANT_NAV } from "../../../config/navigation";
 import { api } from "../../../api/client";
 import { paymentsApi } from "../../../api/payments";
 import { payWithPaystack } from "../../../utils/paystack";
 import { useAuth } from "../../../context/AuthContext";
+
+const PAYMENT_METHODS = [
+  { value: "card", label: "Pay with Card", sub: "Visa, Mastercard, Verve", icon: FaCreditCard, channels: ["card"] },
+  { value: "bank_transfer", label: "Bank Transfer", sub: "Transfer directly to a Paystack account", icon: FaUniversity, channels: ["bank_transfer"] },
+  { value: "ussd", label: "USSD", sub: "Pay using your bank's USSD code", icon: FaMobileAlt, channels: ["ussd"] },
+];
 
 export default function TenantDashboard() {
   const { user } = useAuth();
@@ -15,6 +22,7 @@ export default function TenantDashboard() {
   const [error, setError] = useState("");
   const [paying, setPaying] = useState(false);
   const [payMessage, setPayMessage] = useState("");
+  const [showMethodModal, setShowMethodModal] = useState(false);
 
   function loadProfile() {
     api
@@ -25,7 +33,8 @@ export default function TenantDashboard() {
 
   useEffect(loadProfile, []);
 
-  async function handlePayRent() {
+  async function handlePayRent(channels) {
+    setShowMethodModal(false);
     setError("");
     setPayMessage("");
     setPaying(true);
@@ -36,6 +45,7 @@ export default function TenantDashboard() {
         email: data.email,
         amount: data.amount,
         reference: data.reference,
+        channels,
         onSuccess: async (reference) => {
           try {
             await paymentsApi.paystackVerify(reference);
@@ -81,7 +91,7 @@ export default function TenantDashboard() {
               </div>
 
               <button
-                onClick={handlePayRent}
+                onClick={() => setShowMethodModal(true)}
                 disabled={paying}
                 className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-bold text-white shadow-card transition hover:bg-brand-600 disabled:opacity-60"
               >
@@ -127,6 +137,29 @@ export default function TenantDashboard() {
           </p>
         </div>
       )}
+
+      <Modal open={showMethodModal} title="Select Payment Method" onClose={() => setShowMethodModal(false)}>
+        <div className="space-y-2.5">
+          {PAYMENT_METHODS.map((m) => (
+            <button
+              key={m.value}
+              onClick={() => handlePayRent(m.channels)}
+              className="flex w-full items-center gap-3.5 rounded-xl border border-ink-200 px-4 py-3.5 text-left transition hover:border-brand-300 hover:bg-brand-50/40"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+                <m.icon size={16} />
+              </span>
+              <span>
+                <span className="block text-sm font-bold text-ink-900">{m.label}</span>
+                <span className="block text-xs text-ink-400">{m.sub}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+        <p className="mt-4 text-xs text-ink-400">
+          All methods are processed securely through Paystack — you'll complete payment in the window that opens next.
+        </p>
+      </Modal>
     </DashboardShell>
   );
 }
