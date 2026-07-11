@@ -18,7 +18,7 @@ async function uploadForTenant(req, res, next) {
     });
     if (!tenant) return res.status(404).json({ success: false, error: "Tenant not found." });
 
-    const fileUrl = storage.saveBuffer(tenant.id, req.file.originalname, req.file.buffer);
+    const fileUrl = await storage.saveBuffer(tenant.id, req.file.originalname, req.file.buffer, req.file.mimetype);
     const document = await prisma.document.create({
       data: {
         tenantId: tenant.id,
@@ -63,7 +63,10 @@ async function downloadDocument(req, res, next) {
     });
     if (!document) return res.status(404).json({ success: false, error: "Document not found." });
 
-    res.download(storage.absolutePath(document.fileUrl), document.fileName);
+    const { buffer, contentType } = await storage.getFile(document.fileUrl);
+    res.set("Content-Type", contentType || document.mimeType || "application/octet-stream");
+    res.set("Content-Disposition", `attachment; filename="${encodeURIComponent(document.fileName)}"`);
+    res.send(buffer);
   } catch (err) {
     next(err);
   }
@@ -77,7 +80,7 @@ async function deleteDocument(req, res, next) {
     });
     if (!document) return res.status(404).json({ success: false, error: "Document not found." });
 
-    storage.removeFile(document.fileUrl);
+    await storage.removeFile(document.fileUrl);
     await prisma.document.delete({ where: { id: document.id } });
     res.json({ success: true, data: { message: "Document deleted." } });
   } catch (err) {

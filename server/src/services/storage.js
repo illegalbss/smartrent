@@ -1,35 +1,42 @@
-const fs = require("fs");
-const path = require("path");
 const crypto = require("crypto");
+const path = require("path");
+const { createClient } = require("@supabase/supabase-js");
 
-// Interim local-disk storage until the Supabase service role key is
-// available. Swap this module for a Supabase Storage-backed implementation
-// (upload/getSignedUrl/remove) without touching documentController.js.
-//
-// On Vercel the deployed bundle is read-only outside of /tmp, and /tmp itself
-// is wiped between invocations — uploads here will NOT persist in production.
-// This only prevents a hard crash (EROFS) until real object storage is wired up.
-const UPLOAD_ROOT = process.env.VERCEL ? path.join("/tmp", "uploads") : path.join(__dirname, "..", "..", "uploads");
+// Durable storage backed by Supabase Storage — survives server restarts,
+// redeploys, and works identically in local dev and on Vercel.
+const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "smartrent-uploads";
 
-function saveBuffer(tenantId, originalName, buffer) {
-  const dir = path.join(UPLOAD_ROOT, tenantId);
-  fs.mkdirSync(dir, { recursive: true });
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { persistSession: false },
+});
 
+// Uploads a buffer under `${scopeId}/${generatedName}` and returns that path —
+// this is what gets stored as fileUrl/photoUrl in the database.
+async function saveBuffer(scopeId, originalName, buffer, contentType) {
   const unique = crypto.randomBytes(8).toString("hex");
   const ext = path.extname(originalName);
-  const storedName = `${Date.now()}-${unique}${ext}`;
-  fs.writeFileSync(path.join(dir, storedName), buffer);
+  const objectPath = `${scopeId}/${Date.now()}-${unique}${ext}`;
 
-  // fileUrl is stored relative to UPLOAD_ROOT so it stays portable.
-  return path.join(tenantId, storedName);
+  const { error } = await supabase.storage.from(BUCKET).upload(objectPath, buffer, {
+    contentType: contentType || "application/octet-stream",
+    upsert: false,
+  });
+  if (error) throw new Error(`Storage upload failed: ${error.message}`);
+
+  return objectPath;
 }
 
-function absolutePath(fileUrl) {
-  return path.join(UPLOAD_ROOT, fileUrl);
+// Fetches file bytes + content-type so a controller can stream it back to the client.
+async function getFile(fileUrl) {
+  const { data, error } = await supabase.storage.from(BUCKET).download(fileUrl);
+  if (error) throw new Error(`Storage download failed: ${error.message}`);
+  const buffer = Buffer.from(await data.arrayBuffer());
+  return { buffer, contentType: data.type };
 }
 
-function removeFile(fileUrl) {
-  fs.rm(absolutePath(fileUrl), { force: true }, () => {});
+async function removeFile(fileUrl) {
+  if (!fileUrl) return;
+  await supabase.storage.from(BUCKET).remove([fileUrl]);
 }
 
-module.exports = { UPLOAD_ROOT, saveBuffer, absolutePath, removeFile };
+module.exports = { saveBuffer, getFile, removeFile };

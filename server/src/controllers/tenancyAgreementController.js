@@ -75,13 +75,13 @@ async function generateAgreement(req, res, next) {
     }
 
     const buffer = await renderPdfBuffer(tenant);
-    const fileUrl = storage.saveBuffer(tenant.id, `tenancy-agreement-${tenant.id}.pdf`, buffer);
+    const fileUrl = await storage.saveBuffer(tenant.id, `tenancy-agreement-${tenant.id}.pdf`, buffer, "application/pdf");
 
     const existing = await prisma.document.findFirst({
       where: { tenantId: tenant.id, type: "TENANCY_AGREEMENT" },
     });
     if (existing) {
-      storage.removeFile(existing.fileUrl);
+      await storage.removeFile(existing.fileUrl);
       await prisma.document.delete({ where: { id: existing.id } });
     }
 

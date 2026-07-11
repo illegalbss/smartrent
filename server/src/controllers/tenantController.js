@@ -221,7 +221,7 @@ async function deleteTenant(req, res, next) {
     if (tenant.roomId) {
       await prisma.room.update({ where: { id: tenant.roomId }, data: { status: "VACANT" } });
     }
-    if (tenant.photoUrl) storage.removeFile(tenant.photoUrl);
+    if (tenant.photoUrl) await storage.removeFile(tenant.photoUrl);
     await prisma.tenant.delete({ where: { id: tenant.id } });
     res.json({ success: true, data: { message: "Tenant deleted." } });
   } catch (err) {
@@ -237,8 +237,8 @@ async function uploadPhoto(req, res, next) {
     const tenant = await prisma.tenant.findFirst({ where: { id: req.params.tenantId, landlordId: req.landlordId } });
     if (!tenant) return res.status(404).json({ success: false, error: "Tenant not found." });
 
-    const photoUrl = storage.saveBuffer(tenant.id, req.file.originalname, req.file.buffer);
-    if (tenant.photoUrl) storage.removeFile(tenant.photoUrl);
+    const photoUrl = await storage.saveBuffer(tenant.id, req.file.originalname, req.file.buffer, req.file.mimetype);
+    if (tenant.photoUrl) await storage.removeFile(tenant.photoUrl);
 
     await prisma.tenant.update({ where: { id: tenant.id }, data: { photoUrl } });
     res.status(201).json({ success: true, data: { hasPhoto: true } });
@@ -253,7 +253,9 @@ async function getPhoto(req, res, next) {
     const tenant = await prisma.tenant.findFirst({ where: { id: req.params.tenantId, landlordId: req.landlordId } });
     if (!tenant || !tenant.photoUrl) return res.status(404).json({ success: false, error: "No photo on file." });
 
-    res.sendFile(storage.absolutePath(tenant.photoUrl));
+    const { buffer, contentType } = await storage.getFile(tenant.photoUrl);
+    res.set("Content-Type", contentType || "image/jpeg");
+    res.send(buffer);
   } catch (err) {
     next(err);
   }

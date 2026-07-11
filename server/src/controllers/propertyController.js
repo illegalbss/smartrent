@@ -110,7 +110,7 @@ async function deleteProperty(req, res, next) {
       });
     }
 
-    if (property.photoUrl) storage.removeFile(property.photoUrl);
+    if (property.photoUrl) await storage.removeFile(property.photoUrl);
     await prisma.property.delete({ where: { id: property.id } });
     res.json({ success: true, data: { message: "Property deleted." } });
   } catch (err) {
@@ -128,8 +128,8 @@ async function uploadPhoto(req, res, next) {
     });
     if (!property) return res.status(404).json({ success: false, error: "Property not found." });
 
-    const photoUrl = storage.saveBuffer(`property-${property.id}`, req.file.originalname, req.file.buffer);
-    if (property.photoUrl) storage.removeFile(property.photoUrl);
+    const photoUrl = await storage.saveBuffer(`property-${property.id}`, req.file.originalname, req.file.buffer, req.file.mimetype);
+    if (property.photoUrl) await storage.removeFile(property.photoUrl);
 
     await prisma.property.update({ where: { id: property.id }, data: { photoUrl } });
     res.status(201).json({ success: true, data: { hasPhoto: true } });
@@ -146,7 +146,9 @@ async function getPhoto(req, res, next) {
     });
     if (!property || !property.photoUrl) return res.status(404).json({ success: false, error: "No photo on file." });
 
-    res.sendFile(storage.absolutePath(property.photoUrl));
+    const { buffer, contentType } = await storage.getFile(property.photoUrl);
+    res.set("Content-Type", contentType || "image/jpeg");
+    res.send(buffer);
   } catch (err) {
     next(err);
   }
