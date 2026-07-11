@@ -11,7 +11,7 @@ import {
 } from "react-icons/fa";
 import PublicNavbar from "../components/PublicNavbar";
 import Footer from "../components/Footer";
-import BuildingIllustration from "../components/BuildingIllustration";
+import heroBuilding from "../assets/hero-building.jpg";
 
 const FEATURES = [
   {
@@ -107,8 +107,12 @@ export default function Landing() {
               </Link>
             </div>
           </div>
-          <div className="flex items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 p-10 shadow-soft">
-            <BuildingIllustration className="w-full max-w-sm" />
+          <div className="overflow-hidden rounded-2xl shadow-soft">
+            <img
+              src={heroBuilding}
+              alt="A modern rental property managed with SmartRent"
+              className="h-full w-full object-cover"
+            />
           </div>
         </div>
       </section>
