@@ -10,7 +10,10 @@ const app = express();
 
 app.use(helmet());
 app.use(cors());
-app.use(express.json());
+// Captures the raw request body alongside the parsed one — needed to verify
+// the Paystack webhook's HMAC signature, which must be computed over the
+// exact bytes Paystack sent, not a re-serialized copy.
+app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(morgan("dev"));
 
 app.use("/api/v1", apiLimiter, routes);

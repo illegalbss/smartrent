@@ -11,15 +11,29 @@ async function listProperties(req, res, next) {
   try {
     const properties = await prisma.property.findMany({
       where: { landlordId: req.landlordId },
-      include: { rooms: { select: { status: true } } },
+      include: { rooms: { select: { id: true, status: true } } },
       orderBy: { createdAt: "desc" },
     });
+
+    const allRoomIds = properties.flatMap((p) => p.rooms.map((r) => r.id));
+    const tenantCounts = allRoomIds.length
+      ? await prisma.tenant.groupBy({ by: ["roomId"], where: { roomId: { in: allRoomIds } }, _count: { _all: true } })
+      : [];
+    const tenantCountByRoom = new Map(tenantCounts.map((t) => [t.roomId, t._count._all]));
 
     const data = properties.map((p) => {
       const totalRooms = p.rooms.length;
       const occupiedRooms = p.rooms.filter((r) => r.status === "OCCUPIED").length;
+      const tenantCount = p.rooms.reduce((sum, r) => sum + (tenantCountByRoom.get(r.id) || 0), 0);
       const { rooms, ...rest } = p;
-      return withPhotoFlag({ ...rest, totalRooms, occupiedRooms });
+      return withPhotoFlag({
+        ...rest,
+        totalRooms,
+        occupiedRooms,
+        vacantRooms: totalRooms - occupiedRooms,
+        occupancyRate: totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 1000) / 10 : 0,
+        tenantCount,
+      });
     });
 
     res.json({ success: true, data });

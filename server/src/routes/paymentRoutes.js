@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const { body } = require("express-validator");
-const { requireStaff } = require("../middleware/auth");
+const { requireAuth, requireStaff } = require("../middleware/auth");
 const {
   createPayment,
   listPaymentsForTenant,
@@ -9,6 +9,7 @@ const {
   listAuditLog,
   listMonthlyLedger,
 } = require("../controllers/paymentController");
+const { downloadOwnStatement, downloadTenantStatement } = require("../controllers/statementController");
 
 const router = Router();
 const staff = requireStaff();
@@ -40,5 +41,8 @@ router.delete("/payments/:paymentId", staff, deletePayment);
 
 router.get("/payments/audit-log", staff, listAuditLog);
 router.get("/payments/ledger", staff, listMonthlyLedger);
+
+router.get("/tenant/payments/statement", requireAuth("tenant"), downloadOwnStatement);
+router.get("/tenants/:tenantId/payments/statement", staff, downloadTenantStatement);
 
 module.exports = router;

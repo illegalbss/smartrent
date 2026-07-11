@@ -9,17 +9,26 @@ import {
   FaMoneyBillWave,
   FaCalendarCheck,
   FaExclamationTriangle,
+  FaDoorOpen,
 } from "react-icons/fa";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
 import { Card, StatCard, Badge, EmptyState, formatDate, formatNaira } from "../../../components/dashboard/UiKit";
+import AuthImage from "../../../components/AuthImage";
 import { STAFF_NAV } from "../../../config/navigation";
 import { dashboardApi } from "../../../api/dashboard";
+import { propertiesApi } from "../../../api/properties";
 import { useAuth } from "../../../context/AuthContext";
 
 const STATUS_TONE = { PAID: "green", PARTIAL: "amber", OWING: "red", NO_PAYMENTS: "ink" };
 const STATUS_LABEL = { PAID: "Paid", PARTIAL: "Partial", OWING: "Owing", NO_PAYMENTS: "No payments yet" };
 const PIE_COLORS = { PAID: "#26b568", PARTIAL: "#d97706", OWING: "#dc2626" };
+
+const OWNERSHIP_FILTERS = [
+  { value: "ALL", label: "Both" },
+  { value: "ORGANIZATION", label: "Organization" },
+  { value: "PERSONAL", label: "Personal" },
+];
 
 function IncomeOverviewChart({ series }) {
   return (
@@ -91,57 +100,93 @@ function PaymentStatusChart({ byStatus }) {
   );
 }
 
-function OwnershipCard({ title, bucket }) {
+function PropertyThumb({ property }) {
+  const icon = (
+    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+      <FaBuilding size={18} />
+    </div>
+  );
+  if (!property.hasPhoto) return icon;
   return (
-    <Card title={title}>
-      <div className="grid grid-cols-2 gap-4 text-center sm:grid-cols-4">
-        <div>
-          <div className="text-xl font-extrabold text-ink-900">{bucket.totalProperties}</div>
-          <div className="text-xs text-ink-400">Properties</div>
+    <div className="h-12 w-12 overflow-hidden rounded-xl bg-brand-50">
+      <AuthImage src={propertiesApi.photoUrl(property.id)} alt={property.name} className="h-full w-full object-cover" fallback={icon} />
+    </div>
+  );
+}
+
+// Each property gets its own card — deliberately not combined with any other
+// property, so occupancy/tenant counts are never ambiguous about which
+// building they belong to.
+function PropertyOverviewCard({ property }) {
+  return (
+    <Link
+      to={`/dashboard/staff/properties/${property.id}`}
+      className="block rounded-2xl border border-ink-100 bg-white p-5 shadow-card transition hover:-translate-y-0.5 hover:shadow-soft"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <PropertyThumb property={property} />
+          <div>
+            <h3 className="text-sm font-bold text-ink-900">{property.name}</h3>
+            <p className="text-xs text-ink-400">{property.address}</p>
+          </div>
         </div>
-        <div>
-          <div className="text-xl font-extrabold text-ink-900">{bucket.totalRooms}</div>
-          <div className="text-xs text-ink-400">Rooms</div>
+        <Badge tone={property.ownershipType === "ORGANIZATION" ? "brand" : "ink"}>
+          {property.ownershipType === "ORGANIZATION" ? "Organization" : "Personal"}
+        </Badge>
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-lg bg-ink-50 py-2">
+          <div className="text-base font-extrabold text-ink-900">{property.totalRooms}</div>
+          <div className="text-[10px] font-semibold uppercase text-ink-400">Rooms</div>
         </div>
-        <div>
-          <div className="text-xl font-extrabold text-green-600">{bucket.occupiedRooms}</div>
-          <div className="text-xs text-ink-400">Occupied</div>
+        <div className="rounded-lg bg-ink-50 py-2">
+          <div className="text-base font-extrabold text-green-600">{property.occupiedRooms}</div>
+          <div className="text-[10px] font-semibold uppercase text-ink-400">Occupied</div>
         </div>
-        <div>
-          <div className="text-xl font-extrabold text-amber-600">{bucket.vacantRooms}</div>
-          <div className="text-xs text-ink-400">Vacant</div>
+        <div className="rounded-lg bg-ink-50 py-2">
+          <div className="text-base font-extrabold text-ink-900">{property.tenantCount}</div>
+          <div className="text-[10px] font-semibold uppercase text-ink-400">Tenants</div>
         </div>
       </div>
-      <div className="mt-5">
-        <div className="mb-1.5 flex items-center justify-between text-xs font-semibold text-ink-500">
-          <span>Occupancy Rate</span>
-          <span>{bucket.occupancyRate}%</span>
+
+      <div className="mt-3">
+        <div className="mb-1 flex items-center justify-between text-[11px] font-semibold text-ink-500">
+          <span>Occupancy</span>
+          <span>{property.occupancyRate}%</span>
         </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-ink-100">
-          <div className="h-full rounded-full bg-brand-500" style={{ width: `${bucket.occupancyRate}%` }} />
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-100">
+          <div className="h-full rounded-full bg-brand-500" style={{ width: `${property.occupancyRate}%` }} />
         </div>
       </div>
-    </Card>
+    </Link>
   );
 }
 
 export default function StaffDashboard() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
+  const [properties, setProperties] = useState(null);
+  const [ownershipFilter, setOwnershipFilter] = useState("ALL");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    dashboardApi
-      .get()
-      .then((res) => setData(res.data))
+    Promise.all([dashboardApi.get(), propertiesApi.list()])
+      .then(([dashRes, propsRes]) => {
+        setData(dashRes.data);
+        setProperties(propsRes.data);
+      })
       .catch((err) => setError(err.message));
   }, []);
+
+  const filteredProperties = properties?.filter((p) => ownershipFilter === "ALL" || p.ownershipType === ownershipFilter) || [];
 
   return (
     <DashboardShell
       navItems={STAFF_NAV}
       title={`Welcome, ${user.fullName?.split(" ")[0]}`}
-      subtitle="Occupancy across your portfolio, grouped by ownership type"
+      subtitle="Each property tracked on its own — nothing combined"
     >
       {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</div>}
 
@@ -161,9 +206,37 @@ export default function StaffDashboard() {
             <PaymentStatusChart byStatus={data.finance.byStatus} />
           </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <OwnershipCard title="Organization-Owned" bucket={data.byOwnership.organization} />
-            <OwnershipCard title="Personally-Owned" bucket={data.byOwnership.personal} />
+          <div>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-sm font-bold text-ink-900">Your Properties</h2>
+              <div className="flex rounded-xl border border-ink-200 p-1">
+                {OWNERSHIP_FILTERS.map((f) => (
+                  <button
+                    key={f.value}
+                    onClick={() => setOwnershipFilter(f.value)}
+                    className={`rounded-lg px-3.5 py-1.5 text-xs font-bold transition ${
+                      ownershipFilter === f.value ? "bg-brand-500 text-white" : "text-ink-500 hover:text-ink-800"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {filteredProperties.length === 0 ? (
+              <EmptyState
+                icon={FaDoorOpen}
+                title="No properties in this filter"
+                body={ownershipFilter === "ALL" ? "Add a property to get started." : "Try a different filter, or add a property of this ownership type."}
+              />
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredProperties.map((p) => (
+                  <PropertyOverviewCard key={p.id} property={p} />
+                ))}
+              </div>
+            )}
           </div>
 
           <div>

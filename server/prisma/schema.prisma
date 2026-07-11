@@ -78,6 +78,7 @@ model Landlord {
   maintenanceRequests MaintenanceRequest[]
   notices             Notice[]
   houseRules          HouseRules[]
+  paystackTransactions PaystackTransaction[]
 
   @@map("landlords")
 }
@@ -163,6 +164,7 @@ model Tenant {
   complaints          Complaint[]
   maintenanceRequests MaintenanceRequest[]
   notices             Notice[]
+  paystackTransactions PaystackTransaction[]
 
   @@index([landlordId])
   @@index([roomId])
@@ -329,4 +331,27 @@ model HouseRules {
   @@index([landlordId])
   @@index([propertyId])
   @@map("house_rules")
+}
+
+// Created when a tenant starts a Paystack payment, before it's known to have
+// succeeded. Lets both the client-side verify call AND the server-side
+// webhook (which can fire even after the tenant closes their browser, e.g.
+// for a bank transfer or USSD payment completed later) resolve a bare
+// transaction reference back to which tenant/room it belongs to.
+model PaystackTransaction {
+  id         String    @id @default(cuid())
+  reference  String    @unique
+  tenantId   String    @map("tenant_id")
+  landlordId String    @map("landlord_id")
+  roomId     String    @map("room_id")
+  amount     Decimal   @db.Decimal(12, 2)
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  landlord Landlord @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([landlordId])
+  @@map("paystack_transactions")
 }
