@@ -1,6 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaHome, FaCalendarAlt, FaMoneyBillWave, FaArrowRight, FaCheckCircle, FaCreditCard, FaUniversity, FaMobileAlt } from "react-icons/fa";
+import {
+  FaHome,
+  FaCalendarAlt,
+  FaMoneyBillWave,
+  FaArrowRight,
+  FaCheckCircle,
+  FaCreditCard,
+  FaUniversity,
+  FaMobileAlt,
+  FaExclamationTriangle,
+} from "react-icons/fa";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
 import { Card, StatCard, formatDate, formatNaira } from "../../../components/dashboard/UiKit";
 import Modal from "../../../components/Modal";
@@ -84,10 +94,44 @@ export default function TenantDashboard() {
 
           {profile.room && (
             <>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {profile.paymentStatus && (profile.paymentStatus.isOverdue || (profile.paymentStatus.daysUntilDue !== null && profile.paymentStatus.daysUntilDue <= 14)) && (
+                <div
+                  className={`flex items-start gap-3 rounded-xl px-4 py-3.5 text-sm font-medium ${
+                    profile.paymentStatus.isOverdue ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"
+                  }`}
+                >
+                  <FaExclamationTriangle size={16} className="mt-0.5 shrink-0" />
+                  <div>
+                    {profile.paymentStatus.isOverdue ? (
+                      <>
+                        Your rent was due on {formatDate(profile.paymentStatus.nextDueDate)} —{" "}
+                        {Math.abs(profile.paymentStatus.daysUntilDue)} day(s) overdue.
+                      </>
+                    ) : profile.paymentStatus.daysUntilDue === 0 ? (
+                      <>Your rent is due today ({formatDate(profile.paymentStatus.nextDueDate)}).</>
+                    ) : (
+                      <>
+                        Your rent is due in {profile.paymentStatus.daysUntilDue} day(s), on{" "}
+                        {formatDate(profile.paymentStatus.nextDueDate)}.
+                      </>
+                    )}{" "}
+                    {profile.paymentStatus.outstanding > 0 && (
+                      <>Outstanding balance: {formatNaira(profile.paymentStatus.outstanding)}.</>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                 <StatCard label="Property" value={profile.room.property.name} icon={FaHome} sub={profile.room.property.address} />
                 <StatCard label="Room" value={profile.room.roomNumber} icon={FaHome} />
                 <StatCard label="Rent" value={formatNaira(profile.room.rentAmount)} icon={FaMoneyBillWave} sub="per annum" />
+                <StatCard
+                  label="Outstanding"
+                  value={formatNaira(profile.paymentStatus?.outstanding || 0)}
+                  icon={FaExclamationTriangle}
+                  sub={profile.paymentStatus?.nextDueDate ? `Next due ${formatDate(profile.paymentStatus.nextDueDate)}` : "No payments yet"}
+                />
               </div>
 
               <button

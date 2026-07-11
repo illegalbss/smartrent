@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const { validationResult } = require("express-validator");
 const prisma = require("../config/prisma");
 const storage = require("../services/storage");
+const { computeTenantPaymentStatus } = require("../services/tenantPaymentStatus");
 
 function sanitize(tenant) {
   const { passwordHash, inviteToken, photoUrl, ...rest } = tenant;
@@ -12,6 +13,11 @@ function sanitize(tenant) {
 // Date of Last Payment, Coverage of Payment, Date of Expiration, Phone.
 function toTableRow(tenant) {
   const lastPayment = tenant.payments[0] || null;
+  const paymentStatus = computeTenantPaymentStatus({
+    room: tenant.room,
+    latestPayment: lastPayment,
+    fallbackDueDate: tenant.dateCommencement,
+  });
   return {
     id: tenant.id,
     name: tenant.name,
@@ -27,6 +33,10 @@ function toTableRow(tenant) {
     lastPaymentStatus: lastPayment?.status || null,
     coverageOfPayment: lastPayment ? { start: lastPayment.coverageStart, end: lastPayment.coverageEnd } : null,
     inviteAcceptedAt: tenant.inviteAcceptedAt,
+    outstanding: paymentStatus.outstanding,
+    nextDueDate: paymentStatus.nextDueDate,
+    daysUntilDue: paymentStatus.daysUntilDue,
+    isOverdue: paymentStatus.isOverdue,
   };
 }
 

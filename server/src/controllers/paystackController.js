@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const prisma = require("../config/prisma");
+const { resolveCoverage } = require("../services/paymentDates");
 
 const PAYSTACK_BASE = "https://api.paystack.co";
 
@@ -84,13 +85,17 @@ async function finalizePayment(reference) {
   if (!tenant) return { ok: false, status: 404, error: "Tenant not found." };
 
   const amount = txn.amount / 100;
+  const datePaid = txn.paid_at ? new Date(txn.paid_at) : new Date();
+  const coverage = resolveCoverage({ datePaid });
   const payment = await prisma.payment.create({
     data: {
       landlordId: txnRecord.landlordId,
       tenantId: txnRecord.tenantId,
       roomId: txnRecord.roomId,
       amount,
-      datePaid: txn.paid_at ? new Date(txn.paid_at) : new Date(),
+      datePaid,
+      coverageStart: coverage.coverageStart,
+      coverageEnd: coverage.coverageEnd,
       status: "PAID",
       source: "PAYSTACK",
       paystackReference: reference,

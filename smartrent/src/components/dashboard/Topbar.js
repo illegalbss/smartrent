@@ -5,6 +5,20 @@ import { useAuth } from "../../context/AuthContext";
 import { complaintsApi } from "../../api/complaints";
 import { maintenanceApi } from "../../api/maintenance";
 import { noticesApi } from "../../api/notices";
+import { api } from "../../api/client";
+import { formatNaira } from "./UiKit";
+
+const REMINDER_WINDOW_DAYS = 7;
+
+function rentReminderItem(paymentStatus) {
+  if (!paymentStatus?.nextDueDate || paymentStatus.daysUntilDue > REMINDER_WINDOW_DAYS) return null;
+  const text = paymentStatus.isOverdue
+    ? `Rent is overdue by ${Math.abs(paymentStatus.daysUntilDue)} day(s) — ${formatNaira(paymentStatus.outstanding)} outstanding`
+    : paymentStatus.daysUntilDue === 0
+    ? "Rent is due today"
+    : `Rent is due in ${paymentStatus.daysUntilDue} day(s)`;
+  return { id: "rent-reminder", text, link: "/dashboard/tenant", date: new Date().toISOString() };
+}
 
 function timeAgo(dateStr) {
   const diffMs = Date.now() - new Date(dateStr).getTime();
@@ -50,16 +64,16 @@ export default function Topbar({ title, subtitle }) {
           ].sort((a, b) => new Date(b.date) - new Date(a.date));
           setItems(combined);
         } else {
-          const notices = await noticesApi.listOwn();
+          const [notices, profile] = await Promise.all([noticesApi.listOwn(), api.get("/tenant/profile")]);
           if (cancelled) return;
-          setItems(
-            notices.data.slice(0, 8).map((n) => ({
-              id: `n-${n.id}`,
-              text: n.title,
-              link: "/dashboard/tenant/notices",
-              date: n.createdAt,
-            }))
-          );
+          const noticeItems = notices.data.slice(0, 8).map((n) => ({
+            id: `n-${n.id}`,
+            text: n.title,
+            link: "/dashboard/tenant/notices",
+            date: n.createdAt,
+          }));
+          const reminder = rentReminderItem(profile.data.paymentStatus);
+          setItems(reminder ? [reminder, ...noticeItems] : noticeItems);
         }
       } catch {
         // Notification bell is a convenience — a failed fetch shouldn't block the page.
@@ -105,7 +119,7 @@ export default function Topbar({ title, subtitle }) {
           {open && (
             <div className="absolute right-0 top-12 z-20 w-80 rounded-xl border border-ink-100 bg-white py-2 shadow-soft">
               <div className="border-b border-ink-100 px-4 py-2 text-xs font-bold uppercase tracking-wide text-ink-400">
-                {isStaff ? "Open items needing attention" : "Notices"}
+                {isStaff ? "Open items needing attention" : "Notices & Reminders"}
               </div>
               <div className="max-h-80 overflow-y-auto">
                 {items.length === 0 ? (

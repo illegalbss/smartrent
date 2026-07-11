@@ -1,5 +1,6 @@
 const { validationResult } = require("express-validator");
 const prisma = require("../config/prisma");
+const { resolveCoverage } = require("../services/paymentDates");
 
 async function getStaffName(staffId, staffRole) {
   if (staffRole === "LANDLORD") {
@@ -48,6 +49,7 @@ async function createPayment(req, res, next) {
 
     const { amount, datePaid, coverageStart, coverageEnd, status, notes } = req.body;
     const staffName = await getStaffName(req.staffId, req.staffRole);
+    const coverage = resolveCoverage({ datePaid, coverageStart, coverageEnd });
 
     const payment = await prisma.payment.create({
       data: {
@@ -56,8 +58,8 @@ async function createPayment(req, res, next) {
         roomId: tenant.roomId,
         amount,
         datePaid: new Date(datePaid),
-        coverageStart: coverageStart ? new Date(coverageStart) : null,
-        coverageEnd: coverageEnd ? new Date(coverageEnd) : null,
+        coverageStart: coverage.coverageStart,
+        coverageEnd: coverage.coverageEnd,
         status: status || "PAID",
         notes,
         createdById: req.staffId,

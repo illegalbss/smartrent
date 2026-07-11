@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const { validationResult } = require("express-validator");
 const prisma = require("../config/prisma");
 const { signToken } = require("../utils/jwt");
+const { computeTenantPaymentStatus } = require("../services/tenantPaymentStatus");
 
 function sanitize(tenant) {
   const { passwordHash, inviteToken, ...rest } = tenant;
@@ -63,10 +64,21 @@ async function getProfile(req, res, next) {
   try {
     const tenant = await prisma.tenant.findUnique({
       where: { id: req.auth.id },
-      include: { room: { include: { property: { select: { name: true, address: true, ownershipType: true } } } } },
+      include: {
+        room: { include: { property: { select: { name: true, address: true, ownershipType: true } } } },
+        payments: { orderBy: { datePaid: "desc" }, take: 1 },
+      },
     });
     if (!tenant) return res.status(404).json({ success: false, error: "Tenant not found." });
-    res.json({ success: true, data: sanitize(tenant) });
+
+    const paymentStatus = computeTenantPaymentStatus({
+      room: tenant.room,
+      latestPayment: tenant.payments[0] || null,
+      fallbackDueDate: tenant.dateCommencement,
+    });
+
+    const { payments, ...tenantFields } = tenant;
+    res.json({ success: true, data: { ...sanitize(tenantFields), paymentStatus } });
   } catch (err) {
     next(err);
   }

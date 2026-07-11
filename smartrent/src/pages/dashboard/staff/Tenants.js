@@ -237,6 +237,22 @@ function TenantCard({ tenant, onDelete }) {
             {tenant.dateOfLastPayment && <span className="shrink-0 text-xs text-ink-400">{formatDate(tenant.dateOfLastPayment)}</span>}
           </div>
         </div>
+
+        {tenant.room && (
+          <div className="mt-2.5 flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2.5">
+            <div>
+              <span className="text-xs font-semibold uppercase text-ink-400">Outstanding</span>
+              <div className={`text-sm font-bold ${tenant.outstanding > 0 ? "text-red-600" : "text-green-600"}`}>
+                {formatNaira(tenant.outstanding)}
+              </div>
+            </div>
+            {tenant.nextDueDate && (
+              <Badge tone={tenant.isOverdue ? "red" : tenant.daysUntilDue <= 14 ? "amber" : "ink"}>
+                {tenant.isOverdue ? `${Math.abs(tenant.daysUntilDue)}d overdue` : `Due in ${tenant.daysUntilDue}d`}
+              </Badge>
+            )}
+          </div>
+        )}
       </Link>
 
       <div className="mt-4 flex gap-2 border-t border-ink-100 pt-4">
@@ -393,6 +409,7 @@ export default function Tenants() {
                 <th className="px-4 py-3">Date Packed In</th>
                 <th className="px-4 py-3">Date of Last Payment</th>
                 <th className="px-4 py-3">Coverage of Payment</th>
+                <th className="px-4 py-3">Outstanding</th>
                 <th className="px-4 py-3">Date of Expiration</th>
                 <th className="px-4 py-3">Phone Number</th>
                 <th className="px-4 py-3"></th>
@@ -419,6 +436,22 @@ export default function Tenants() {
                   <td className="px-4 py-3 text-ink-700">{formatDate(t.dateOfLastPayment)}</td>
                   <td className="px-4 py-3 text-ink-700">
                     {t.coverageOfPayment ? `${formatDate(t.coverageOfPayment.start)} – ${formatDate(t.coverageOfPayment.end)}` : "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    {t.room ? (
+                      <div className="flex items-center gap-2">
+                        <span className={`font-semibold ${t.outstanding > 0 ? "text-red-600" : "text-green-600"}`}>
+                          {formatNaira(t.outstanding)}
+                        </span>
+                        {t.nextDueDate && (
+                          <Badge tone={t.isOverdue ? "red" : t.daysUntilDue <= 14 ? "amber" : "ink"}>
+                            {t.isOverdue ? `${Math.abs(t.daysUntilDue)}d overdue` : `Due ${t.daysUntilDue}d`}
+                          </Badge>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-ink-400">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-ink-700">{formatDate(t.dateExpiration)}</td>
                   <td className="px-4 py-3 text-ink-700">{t.phone || "—"}</td>
