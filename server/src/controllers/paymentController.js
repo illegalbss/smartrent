@@ -183,4 +183,67 @@ async function listAuditLog(req, res, next) {
   }
 }
 
-module.exports = { createPayment, listPaymentsForTenant, updatePayment, deletePayment, listAuditLog };
+// Every payment recorded in a given calendar month, across all tenants —
+// lets staff browse collections month by month instead of only "this month".
+async function listMonthlyLedger(req, res, next) {
+  try {
+    const monthParam = req.query.month; // "YYYY-MM"
+    const now = new Date();
+    const [year, month] = monthParam
+      ? monthParam.split("-").map(Number)
+      : [now.getFullYear(), now.getMonth() + 1];
+
+    if (!year || !month || month < 1 || month > 12) {
+      return res.status(400).json({ success: false, error: "Invalid month. Expected format YYYY-MM." });
+    }
+
+    const rangeStart = new Date(Date.UTC(year, month - 1, 1));
+    const rangeEnd = new Date(Date.UTC(year, month, 1));
+
+    const payments = await prisma.payment.findMany({
+      where: { landlordId: req.landlordId, datePaid: { gte: rangeStart, lt: rangeEnd } },
+      include: {
+        tenant: {
+          select: {
+            name: true,
+            room: { select: { roomNumber: true, property: { select: { name: true } } } },
+          },
+        },
+      },
+      orderBy: { datePaid: "desc" },
+    });
+
+    const totalCollected = payments
+      .filter((p) => p.status !== "OWING")
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+
+    res.json({
+      success: true,
+      data: {
+        month: `${year}-${String(month).padStart(2, "0")}`,
+        totalCollected,
+        count: payments.length,
+        payments: payments.map((p) => ({
+          id: p.id,
+          tenantName: p.tenant.name,
+          room: p.tenant.room ? `${p.tenant.room.roomNumber} — ${p.tenant.room.property.name}` : "Unassigned",
+          amount: p.amount,
+          datePaid: p.datePaid,
+          status: p.status,
+          source: p.source,
+        })),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  createPayment,
+  listPaymentsForTenant,
+  updatePayment,
+  deletePayment,
+  listAuditLog,
+  listMonthlyLedger,
+};

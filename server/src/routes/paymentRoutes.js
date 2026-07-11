@@ -7,6 +7,7 @@ const {
   updatePayment,
   deletePayment,
   listAuditLog,
+  listMonthlyLedger,
 } = require("../controllers/paymentController");
 
 const router = Router();
@@ -38,5 +39,6 @@ router.put(
 router.delete("/payments/:paymentId", staff, deletePayment);
 
 router.get("/payments/audit-log", staff, listAuditLog);
+router.get("/payments/ledger", staff, listMonthlyLedger);
 
 module.exports = router;

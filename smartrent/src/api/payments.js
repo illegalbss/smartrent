@@ -6,6 +6,7 @@ export const paymentsApi = {
   update: (paymentId, data) => api.put(`/payments/${paymentId}`, data),
   remove: (paymentId) => api.delete(`/payments/${paymentId}`),
   auditLog: () => api.get("/payments/audit-log"),
+  ledger: (month) => api.get(`/payments/ledger${month ? `?month=${month}` : ""}`),
   own: () => api.get("/tenant/payments"),
   paystackInitialize: () => api.post("/tenant/payments/paystack/initialize", {}),
   paystackVerify: (reference) => api.post("/tenant/payments/paystack/verify", { reference }),

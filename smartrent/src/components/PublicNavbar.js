@@ -3,11 +3,10 @@ import { Link, NavLink } from "react-router-dom";
 import { FaBars, FaTimes } from "react-icons/fa";
 import Logo from "./Logo";
 
-const LINKS = [
-  { to: "/", label: "Home", end: true },
-  { to: "/#features", label: "Features" },
-  { to: "/#about", label: "About" },
-  { to: "/#contact", label: "Contact" },
+const ANCHOR_LINKS = [
+  { href: "#features", label: "Features" },
+  { href: "#about", label: "About" },
+  { href: "#contact", label: "Contact" },
 ];
 
 export default function PublicNavbar() {
@@ -19,15 +18,13 @@ export default function PublicNavbar() {
         <Logo />
 
         <nav className="hidden items-center gap-8 md:flex">
-          {LINKS.map((link) => (
-            <NavLink
-              key={link.label}
-              to={link.to}
-              end={link.end}
-              className="text-sm font-medium text-ink-600 transition hover:text-brand-600"
-            >
+          <NavLink to="/" end className="text-sm font-medium text-ink-600 transition hover:text-brand-600">
+            Home
+          </NavLink>
+          {ANCHOR_LINKS.map((link) => (
+            <a key={link.label} href={link.href} className="text-sm font-medium text-ink-600 transition hover:text-brand-600">
               {link.label}
-            </NavLink>
+            </a>
           ))}
         </nav>
 
@@ -58,16 +55,23 @@ export default function PublicNavbar() {
       {open && (
         <div className="border-t border-ink-100 bg-white px-4 pb-4 md:hidden">
           <nav className="flex flex-col gap-1 pt-2">
-            {LINKS.map((link) => (
-              <NavLink
+            <NavLink
+              to="/"
+              end
+              onClick={() => setOpen(false)}
+              className="rounded-lg px-3 py-2 text-sm font-medium text-ink-600 hover:bg-ink-50"
+            >
+              Home
+            </NavLink>
+            {ANCHOR_LINKS.map((link) => (
+              <a
                 key={link.label}
-                to={link.to}
-                end={link.end}
+                href={link.href}
                 onClick={() => setOpen(false)}
                 className="rounded-lg px-3 py-2 text-sm font-medium text-ink-600 hover:bg-ink-50"
               >
                 {link.label}
-              </NavLink>
+              </a>
             ))}
           </nav>
           <div className="mt-3 flex flex-col gap-2 border-t border-ink-100 pt-3">

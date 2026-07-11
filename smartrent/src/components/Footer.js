@@ -28,7 +28,6 @@ export default function Footer() {
           <h4 className="mb-4 text-sm font-bold uppercase tracking-wide text-white">Product</h4>
           <ul className="space-y-2.5 text-sm text-ink-400">
             <li><a href="/#features" className="hover:text-brand-400">Features</a></li>
-            <li><a href="/#pricing" className="hover:text-brand-400">Pricing</a></li>
             <li><a href="/#about" className="hover:text-brand-400">About</a></li>
             <li><a href="/login" className="hover:text-brand-400">Login</a></li>
           </ul>

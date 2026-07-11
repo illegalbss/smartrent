@@ -11,6 +11,7 @@ import Properties from "./pages/dashboard/staff/Properties";
 import PropertyDetail from "./pages/dashboard/staff/PropertyDetail";
 import Tenants from "./pages/dashboard/staff/Tenants";
 import TenantDetail from "./pages/dashboard/staff/TenantDetail";
+import PaymentLedger from "./pages/dashboard/staff/PaymentLedger";
 import Complaints from "./pages/dashboard/staff/Complaints";
 import Secretaries from "./pages/dashboard/staff/Secretaries";
 import TenantDashboard from "./pages/dashboard/tenant/Dashboard";
@@ -69,6 +70,14 @@ export default function App() {
           element={
             <ProtectedRoute role={STAFF_ROLES}>
               <TenantDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/staff/payments"
+          element={
+            <ProtectedRoute role={STAFF_ROLES}>
+              <PaymentLedger />
             </ProtectedRoute>
           }
         />
