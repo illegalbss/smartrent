@@ -10,6 +10,8 @@ const complaintRoutes = require("./complaintRoutes");
 const documentRoutes = require("./documentRoutes");
 const dashboardRoutes = require("./dashboardRoutes");
 const paystackRoutes = require("./paystackRoutes");
+const maintenanceRoutes = require("./maintenanceRoutes");
+const noticeRoutes = require("./noticeRoutes");
 
 const router = Router();
 
@@ -25,5 +27,7 @@ router.use(complaintRoutes);
 router.use(documentRoutes);
 router.use(dashboardRoutes);
 router.use(paystackRoutes);
+router.use(maintenanceRoutes);
+router.use(noticeRoutes);
 
 module.exports = router;

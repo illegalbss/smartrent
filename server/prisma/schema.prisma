@@ -42,6 +42,12 @@ enum ComplaintStatus {
   RESOLVED
 }
 
+enum MaintenanceStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
 enum ActorRole {
   LANDLORD
   SECRETARY
@@ -63,12 +69,14 @@ model Landlord {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  properties  Property[]
-  secretaries Secretary[]
-  tenants     Tenant[]
-  payments    Payment[]
-  complaints  Complaint[]
-  auditLogs   PaymentAuditLog[]
+  properties          Property[]
+  secretaries         Secretary[]
+  tenants             Tenant[]
+  payments            Payment[]
+  complaints          Complaint[]
+  auditLogs           PaymentAuditLog[]
+  maintenanceRequests MaintenanceRequest[]
+  notices             Notice[]
 
   @@map("landlords")
 }
@@ -145,11 +153,12 @@ model Tenant {
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  landlord   Landlord    @relation(fields: [landlordId], references: [id], onDelete: Cascade)
-  room       Room?       @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  payments   Payment[]
-  documents  Document[]
-  complaints Complaint[]
+  landlord            Landlord             @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+  room                Room?                @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  payments            Payment[]
+  documents           Document[]
+  complaints          Complaint[]
+  maintenanceRequests MaintenanceRequest[]
 
   @@index([landlordId])
   @@index([roomId])
@@ -245,4 +254,39 @@ model Complaint {
   @@index([landlordId])
   @@index([tenantId])
   @@map("complaints")
+}
+
+model MaintenanceRequest {
+  id          String            @id @default(cuid())
+  landlordId  String            @map("landlord_id")
+  tenantId    String            @map("tenant_id")
+  title       String
+  description String
+  status      MaintenanceStatus @default(PENDING)
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  resolvedAt  DateTime?         @map("resolved_at")
+
+  landlord Landlord @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([landlordId])
+  @@index([tenantId])
+  @@map("maintenance_requests")
+}
+
+// One-way broadcast from Landlord/Secretary to every tenant in the portfolio.
+model Notice {
+  id            String    @id @default(cuid())
+  landlordId    String    @map("landlord_id")
+  title         String
+  message       String
+  createdById   String    @map("created_by_id")
+  createdByRole ActorRole @map("created_by_role")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  landlord Landlord @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+
+  @@index([landlordId])
+  @@map("notices")
 }

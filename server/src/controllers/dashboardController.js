@@ -61,12 +61,28 @@ async function buildFinanceSummary(landlordId) {
       lastPaymentDate: t.payments[0]?.datePaid || null,
     }));
 
+  // Last 6 months of collections, oldest first, for the income trend chart.
+  const monthlySeries = [];
+  for (let i = 5; i >= 0; i--) {
+    const monthDate = new Date(Date.UTC(now.getFullYear(), now.getMonth() - i, 1));
+    const label = monthDate.toLocaleDateString("en-NG", { month: "short", year: "2-digit", timeZone: "UTC" });
+    const total = payments
+      .filter((p) => {
+        if (p.status === "OWING") return false;
+        const d = new Date(p.datePaid);
+        return d.getUTCFullYear() === monthDate.getUTCFullYear() && d.getUTCMonth() === monthDate.getUTCMonth();
+      })
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+    monthlySeries.push({ month: label, total: Math.round(total * 100) / 100 });
+  }
+
   return {
     totalCollected: Math.round(totalCollected * 100) / 100,
     collectedThisMonth: Math.round(collectedThisMonth * 100) / 100,
     totalOwing: Math.round(byStatus.OWING.total * 100) / 100,
     byStatus,
     bySource,
+    monthlySeries,
     tenantsInArrears: inArrears,
   };
 }
