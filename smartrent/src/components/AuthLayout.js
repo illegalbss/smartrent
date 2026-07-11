@@ -21,12 +21,13 @@ export default function AuthLayout({ children, tagline }) {
         </div>
       </div>
 
-      <div className="relative hidden w-1/2 items-end justify-center lg:flex">
-        <img src={loginBuilding} alt="" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-        <div className="relative z-10 flex flex-col items-center px-10 pb-16 text-center">
-          <h2 className="text-2xl font-bold text-white">Manage Your Rental Property Easily</h2>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/85">
+      <div className="hidden w-1/2 flex-col items-center justify-center bg-gradient-to-br from-ink-50 to-white px-10 lg:flex">
+        <div className="w-full max-w-md overflow-hidden rounded-2xl shadow-soft">
+          <img src={loginBuilding} alt="" className="block w-full" />
+        </div>
+        <div className="mt-8 max-w-md text-center">
+          <h2 className="text-2xl font-bold text-ink-900">Manage Your Rental Property Easily</h2>
+          <p className="mt-3 text-sm leading-relaxed text-ink-500">
             {tagline || "Connect, pay rent, and track everything in one secure place."}
           </p>
         </div>
