@@ -14,19 +14,24 @@ export function Card({ title, action, children, className = "" }) {
   );
 }
 
-export function StatCard({ label, value, sub, icon: Icon }) {
+export function StatCard({ label, value, sub, icon: Icon, title }) {
   return (
-    <div className="rounded-2xl border border-ink-100 bg-white p-5 shadow-card">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-ink-400">{label}</span>
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-ink-100 bg-white p-5 shadow-card">
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate text-xs font-semibold uppercase tracking-wide text-ink-400">{label}</span>
         {Icon && (
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
             <Icon size={14} />
           </span>
         )}
       </div>
-      <div className="mt-2 text-2xl font-extrabold text-ink-900">{value}</div>
-      {sub && <div className="mt-1 text-xs text-ink-400">{sub}</div>}
+      <div
+        className="mt-2 truncate text-xl font-extrabold text-ink-900 sm:text-2xl"
+        title={title ?? (typeof value === "string" || typeof value === "number" ? String(value) : undefined)}
+      >
+        {value}
+      </div>
+      {sub && <div className="mt-1 truncate text-xs text-ink-400">{sub}</div>}
     </div>
   );
 }
@@ -89,6 +94,16 @@ export function Avatar({ entity, photoSrc, size = "h-12 w-12 text-base" }) {
 export function formatNaira(amount) {
   if (amount === null || amount === undefined || amount === "") return "—";
   return `₦${Number(amount).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
+}
+
+// Short form for tight spaces (stat tiles) — pair with formatNaira as a title/tooltip for the exact figure.
+export function formatNairaCompact(amount) {
+  if (amount === null || amount === undefined || amount === "") return "—";
+  const n = Number(amount);
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return `₦${(n / 1_000_000).toFixed(abs % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (abs >= 1_000) return `₦${(n / 1_000).toFixed(abs % 1_000 === 0 ? 0 : 1)}K`;
+  return `₦${n.toLocaleString("en-NG")}`;
 }
 
 export function formatDate(date) {

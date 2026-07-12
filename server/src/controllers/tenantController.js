@@ -97,9 +97,11 @@ async function listTenants(req, res, next) {
     const limit = req.query.limit ? parseInt(req.query.limit, 10) : 20;
     const skip = (page - 1) * limit;
     const search = (req.query.search || "").trim();
+    const propertyId = req.query.propertyId;
 
     const where = {
       landlordId: req.landlordId,
+      ...(propertyId && { room: { propertyId } }),
       ...(search && {
         OR: [
           { name: { contains: search, mode: "insensitive" } },

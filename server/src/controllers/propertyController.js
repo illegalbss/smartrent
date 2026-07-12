@@ -68,6 +68,29 @@ async function buildPropertyStats(property) {
       : Promise.resolve([]),
   ]);
 
+  const tenantIds = tenantsWithRooms.map((t) => t.id);
+
+  const [openComplaints, pendingMaintenance, recentPaymentRows, recentComplaintRows] = await Promise.all([
+    tenantIds.length ? prisma.complaint.count({ where: { tenantId: { in: tenantIds }, status: "OPEN" } }) : Promise.resolve(0),
+    tenantIds.length ? prisma.maintenanceRequest.count({ where: { tenantId: { in: tenantIds }, status: "PENDING" } }) : Promise.resolve(0),
+    roomIds.length
+      ? prisma.payment.findMany({
+          where: { roomId: { in: roomIds } },
+          include: { tenant: { select: { id: true, name: true, photoUrl: true } } },
+          orderBy: { datePaid: "desc" },
+          take: 5,
+        })
+      : Promise.resolve([]),
+    tenantIds.length
+      ? prisma.complaint.findMany({
+          where: { tenantId: { in: tenantIds } },
+          include: { tenant: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+        })
+      : Promise.resolve([]),
+  ]);
+
   const tenantsInArrears = tenantsWithRooms
     .filter((t) => !t.payments[0] || t.payments[0].status !== "PAID")
     .map((t) => ({
@@ -78,14 +101,38 @@ async function buildPropertyStats(property) {
       lastPaymentDate: t.payments[0]?.datePaid || null,
     }));
 
+  const recentPayments = recentPaymentRows.map((p) => ({
+    id: p.id,
+    tenantId: p.tenant.id,
+    tenantName: p.tenant.name,
+    tenantHasPhoto: !!p.tenant.photoUrl,
+    amount: p.amount,
+    datePaid: p.datePaid,
+    source: p.source,
+    status: p.status,
+  }));
+
+  const recentComplaints = recentComplaintRows.map((c) => ({
+    id: c.id,
+    tenantId: c.tenant.id,
+    tenantName: c.tenant.name,
+    message: c.message,
+    status: c.status,
+    createdAt: c.createdAt,
+  }));
+
   return {
     totalRooms,
     occupiedRooms,
     vacantRooms: totalRooms - occupiedRooms,
     occupancyRate: totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 1000) / 10 : 0,
     tenantCount: tenantsWithRooms.length,
+    openComplaints,
+    pendingMaintenance,
     ...summarizePayments(payments),
     tenantsInArrears,
+    recentPayments,
+    recentComplaints,
   };
 }
 
@@ -97,7 +144,7 @@ async function getProperty(req, res, next) {
         rooms: {
           include: {
             tenants: {
-              select: { id: true, name: true, email: true, phone: true },
+              select: { id: true, name: true, email: true, phone: true, photoUrl: true },
               take: 1,
               orderBy: { createdAt: "desc" },
             },
