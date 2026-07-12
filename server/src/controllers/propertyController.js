@@ -2,6 +2,7 @@ const { validationResult } = require("express-validator");
 const prisma = require("../config/prisma");
 const storage = require("../services/storage");
 const { summarizePayments } = require("../services/financeSummary");
+const { computeTenantPaymentStatus } = require("../services/tenantPaymentStatus");
 
 function withPhotoFlag(property) {
   const { photoUrl, ...rest } = property;
@@ -12,20 +13,38 @@ async function listProperties(req, res, next) {
   try {
     const properties = await prisma.property.findMany({
       where: { landlordId: req.landlordId },
-      include: { rooms: { select: { id: true, status: true } } },
+      include: { rooms: { select: { id: true, status: true, rentAmount: true } } },
       orderBy: { createdAt: "desc" },
     });
 
     const allRoomIds = properties.flatMap((p) => p.rooms.map((r) => r.id));
-    const tenantCounts = allRoomIds.length
-      ? await prisma.tenant.groupBy({ by: ["roomId"], where: { roomId: { in: allRoomIds } }, _count: { _all: true } })
+    const roomToProperty = new Map(properties.flatMap((p) => p.rooms.map((r) => [r.id, p.id])));
+
+    const tenantsWithRooms = allRoomIds.length
+      ? await prisma.tenant.findMany({
+          where: { roomId: { in: allRoomIds } },
+          select: {
+            roomId: true,
+            room: { select: { rentAmount: true } },
+            payments: { orderBy: { datePaid: "desc" }, take: 1, select: { status: true, amount: true } },
+          },
+        })
       : [];
-    const tenantCountByRoom = new Map(tenantCounts.map((t) => [t.roomId, t._count._all]));
+
+    const tenantCountByProperty = new Map();
+    const outstandingByProperty = new Map();
+    for (const t of tenantsWithRooms) {
+      const propertyId = roomToProperty.get(t.roomId);
+      if (!propertyId) continue;
+      tenantCountByProperty.set(propertyId, (tenantCountByProperty.get(propertyId) || 0) + 1);
+      const { outstanding } = computeTenantPaymentStatus({ room: t.room, latestPayment: t.payments[0] || null });
+      outstandingByProperty.set(propertyId, (outstandingByProperty.get(propertyId) || 0) + outstanding);
+    }
 
     const data = properties.map((p) => {
       const totalRooms = p.rooms.length;
       const occupiedRooms = p.rooms.filter((r) => r.status === "OCCUPIED").length;
-      const tenantCount = p.rooms.reduce((sum, r) => sum + (tenantCountByRoom.get(r.id) || 0), 0);
+      const annualRent = p.rooms.reduce((sum, r) => sum + Number(r.rentAmount), 0);
       const { rooms, ...rest } = p;
       return withPhotoFlag({
         ...rest,
@@ -33,7 +52,9 @@ async function listProperties(req, res, next) {
         occupiedRooms,
         vacantRooms: totalRooms - occupiedRooms,
         occupancyRate: totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 1000) / 10 : 0,
-        tenantCount,
+        tenantCount: tenantCountByProperty.get(p.id) || 0,
+        monthlyIncome: Math.round((annualRent / 12) * 100) / 100,
+        outstanding: Math.round((outstandingByProperty.get(p.id) || 0) * 100) / 100,
       });
     });
 

@@ -1,4 +1,23 @@
+import { useEffect, useRef } from "react";
 import AuthImage from "../AuthImage";
+
+// Small dropdown menu (e.g. a row's kebab menu) that closes itself on outside click.
+export function ConfirmMenu({ children, onClose }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) onClose();
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
+
+  return (
+    <div ref={ref} className="absolute right-0 top-9 z-20 w-48 rounded-xl border border-ink-100 bg-white py-1.5 shadow-soft">
+      {children}
+    </div>
+  );
+}
 
 export function Card({ title, action, children, className = "" }) {
   return (

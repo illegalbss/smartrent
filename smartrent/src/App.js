@@ -10,6 +10,7 @@ import StaffDashboard from "./pages/dashboard/staff/Dashboard";
 import Properties from "./pages/dashboard/staff/Properties";
 import PropertyDetail from "./pages/dashboard/staff/PropertyDetail";
 import Tenants from "./pages/dashboard/staff/Tenants";
+import PropertyTenants from "./pages/dashboard/staff/PropertyTenants";
 import TenantDetail from "./pages/dashboard/staff/TenantDetail";
 import PaymentLedger from "./pages/dashboard/staff/PaymentLedger";
 import StaffMaintenance from "./pages/dashboard/staff/Maintenance";
@@ -68,6 +69,14 @@ export default function App() {
           element={
             <ProtectedRoute role={STAFF_ROLES}>
               <Tenants />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/staff/properties/:propertyId/tenants"
+          element={
+            <ProtectedRoute role={STAFF_ROLES}>
+              <PropertyTenants />
             </ProtectedRoute>
           }
         />

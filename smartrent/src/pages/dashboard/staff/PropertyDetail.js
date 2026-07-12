@@ -135,6 +135,9 @@ export default function PropertyDetail() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editPropertyModal, setEditPropertyModal] = useState(false);
   const [deletePropertyConfirm, setDeletePropertyConfirm] = useState(false);
+  const [roomSearch, setRoomSearch] = useState("");
+  const [roomStatusFilter, setRoomStatusFilter] = useState("ALL");
+  const [roomVisibleCount, setRoomVisibleCount] = useState(24);
   const settingsRef = useRef(null);
 
   function load() {
@@ -234,6 +237,14 @@ export default function PropertyDetail() {
     stats && stats.totalCollected + stats.totalOwing > 0
       ? Math.round((stats.totalCollected / (stats.totalCollected + stats.totalOwing)) * 1000) / 10
       : 0;
+
+  const visibleRooms = (property?.rooms || []).filter((room) => {
+    if (roomStatusFilter !== "ALL" && room.status !== roomStatusFilter) return false;
+    const q = roomSearch.trim().toLowerCase();
+    if (!q) return true;
+    const tenant = room.tenants?.[0];
+    return room.roomNumber.toLowerCase().includes(q) || (tenant && tenant.name.toLowerCase().includes(q));
+  });
 
   return (
     <DashboardShell navItems={STAFF_NAV} title={property?.name || "Property"} subtitle={property?.address}>
@@ -369,7 +380,7 @@ export default function PropertyDetail() {
           <Card
             title={`Tenants in ${property.name}`}
             action={
-              <Link to="/dashboard/staff/tenants" className="text-xs font-bold text-brand-600 hover:text-brand-700">
+              <Link to={`/dashboard/staff/properties/${property.id}/tenants`} className="text-xs font-bold text-brand-600 hover:text-brand-700">
                 View All Tenants
               </Link>
             }
@@ -459,9 +470,9 @@ export default function PropertyDetail() {
             )}
           </Card>
 
-          {/* Rooms management */}
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-ink-900">Rooms</h2>
+          {/* Rooms management — searchable/filterable so properties with 50+ rooms stay usable */}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-bold text-ink-900">Rooms ({property.rooms.length})</h2>
             <button
               onClick={() => setModal({ mode: "add" })}
               className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white shadow-card transition hover:bg-brand-600"
@@ -479,8 +490,39 @@ export default function PropertyDetail() {
           )}
 
           {property.rooms.length > 0 && (
+            <>
+              {property.rooms.length > 8 && (
+                <div className="mb-4 flex flex-wrap gap-2">
+                  <div className="relative min-w-[200px] flex-1">
+                    <FaDoorOpen size={12} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400" />
+                    <input
+                      value={roomSearch}
+                      onChange={(e) => setRoomSearch(e.target.value)}
+                      placeholder="Search rooms by number or tenant…"
+                      className="w-full rounded-xl border border-ink-200 bg-white py-2.5 pl-9 pr-3.5 text-sm text-ink-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                    />
+                  </div>
+                  <select
+                    value={roomStatusFilter}
+                    onChange={(e) => setRoomStatusFilter(e.target.value)}
+                    className="rounded-xl border border-ink-200 bg-white px-3 py-2.5 text-sm font-semibold text-ink-700 outline-none focus:border-brand-500"
+                  >
+                    <option value="ALL">All Rooms</option>
+                    <option value="OCCUPIED">Occupied Only</option>
+                    <option value="VACANT">Vacant Only</option>
+                  </select>
+                </div>
+              )}
+            </>
+          )}
+
+          {property.rooms.length > 0 && visibleRooms.length === 0 && (
+            <EmptyState icon={FaDoorOpen} title="No rooms match your search" />
+          )}
+
+          {visibleRooms.length > 0 && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {property.rooms.map((room) => {
+              {visibleRooms.slice(0, roomVisibleCount).map((room) => {
                 const tenant = room.tenants?.[0];
                 return (
                   <Card key={room.id}>
@@ -516,6 +558,17 @@ export default function PropertyDetail() {
                   </Card>
                 );
               })}
+            </div>
+          )}
+
+          {visibleRooms.length > roomVisibleCount && (
+            <div className="mt-4 flex justify-center">
+              <button
+                onClick={() => setRoomVisibleCount((c) => c + 24)}
+                className="rounded-xl border border-ink-200 bg-white px-5 py-2.5 text-sm font-bold text-ink-600 hover:border-brand-300 hover:text-brand-600"
+              >
+                Show More Rooms ({visibleRooms.length - roomVisibleCount} remaining)
+              </button>
             </div>
           )}
         </>
