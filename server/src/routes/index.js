@@ -13,6 +13,9 @@ const paystackRoutes = require("./paystackRoutes");
 const maintenanceRoutes = require("./maintenanceRoutes");
 const noticeRoutes = require("./noticeRoutes");
 const houseRulesRoutes = require("./houseRulesRoutes");
+const superAdminAuthRoutes = require("./superAdminAuthRoutes");
+const superAdminRoutes = require("./superAdminRoutes");
+const subscriptionPlanRoutes = require("./subscriptionPlanRoutes");
 
 const router = Router();
 
@@ -31,5 +34,8 @@ router.use(paystackRoutes);
 router.use(maintenanceRoutes);
 router.use(noticeRoutes);
 router.use(houseRulesRoutes);
+router.use(superAdminAuthRoutes);
+router.use(superAdminRoutes);
+router.use(subscriptionPlanRoutes);
 
 module.exports = router;

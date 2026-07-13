@@ -36,6 +36,18 @@ async function createRoom(req, res, next) {
     });
     if (!property) return res.status(404).json({ success: false, error: "Property not found." });
 
+    const landlord = await prisma.landlord.findUnique({ where: { id: req.auth.id }, include: { plan: true } });
+    if (landlord.plan && landlord.plan.roomLimit !== null) {
+      const currentRoomCount = await prisma.room.count({ where: { property: { landlordId: req.auth.id } } });
+      if (currentRoomCount >= landlord.plan.roomLimit) {
+        return res.status(403).json({
+          success: false,
+          error: `Your ${landlord.plan.name} plan allows up to ${landlord.plan.roomLimit} rooms. Upgrade your plan to add more.`,
+          code: "ROOM_LIMIT_REACHED",
+        });
+      }
+    }
+
     const { roomNumber, rentAmount, status } = req.body;
     const existing = await prisma.room.findFirst({ where: { propertyId: property.id, roomNumber } });
     if (existing) {

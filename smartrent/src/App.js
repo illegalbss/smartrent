@@ -26,6 +26,8 @@ import TenantHouseRules from "./pages/dashboard/tenant/HouseRules";
 import TenantComplaints from "./pages/dashboard/tenant/Complaints";
 import Settings from "./pages/dashboard/Settings";
 import NotFound from "./pages/NotFound";
+import AdminLogin from "./pages/admin/AdminLogin";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import { STAFF_NAV, TENANT_NAV } from "./config/navigation";
 
 const STAFF_ROLES = ["landlord", "secretary"];
@@ -198,6 +200,16 @@ export default function App() {
           element={
             <ProtectedRoute role="tenant">
               <Settings navItems={TENANT_NAV} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <ProtectedRoute role="superadmin">
+              <AdminDashboard />
             </ProtectedRoute>
           }
         />

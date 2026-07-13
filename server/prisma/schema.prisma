@@ -68,26 +68,95 @@ enum AuditAction {
   DELETED
 }
 
-model Landlord {
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  EXPIRED
+  CANCELED
+}
+
+enum BillingTransactionStatus {
+  SUCCESS
+  FAILED
+  PENDING
+}
+
+// A single Super Admin (app owner) account type — separate login from
+// Landlord/Secretary/Tenant, used only to manage the platform itself.
+model SuperAdmin {
   id           String   @id @default(cuid())
   name         String
   email        String   @unique
   passwordHash String   @map("password_hash")
-  phone        String?
   createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  properties          Property[]
-  secretaries         Secretary[]
-  tenants             Tenant[]
-  payments            Payment[]
-  complaints          Complaint[]
-  auditLogs           PaymentAuditLog[]
-  maintenanceRequests MaintenanceRequest[]
-  notices             Notice[]
-  houseRules          HouseRules[]
+  @@map("super_admins")
+}
+
+// Fixed pricing tiers, stored in the database (not hardcoded) so the Super
+// Admin can adjust price/room limits later without a code change.
+// roomLimit null means unlimited (the Pro tier).
+model SubscriptionPlan {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  roomLimit Int?     @map("room_limit")
+  price     Decimal  @db.Decimal(12, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  landlords    Landlord[]
+  transactions BillingTransaction[]
+
+  @@map("subscription_plans")
+}
+
+// Every billing event (initial subscription payment, successful renewal, or
+// a failed charge) — this is what powers the Super Admin's revenue view.
+model BillingTransaction {
+  id                String                   @id @default(cuid())
+  landlordId        String                   @map("landlord_id")
+  planId            String?                  @map("plan_id")
+  amount            Decimal                  @db.Decimal(12, 2)
+  status            BillingTransactionStatus
+  paystackReference String                   @unique @map("paystack_reference")
+  createdAt         DateTime                 @default(now()) @map("created_at")
+
+  landlord Landlord          @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+  plan     SubscriptionPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+
+  @@index([landlordId])
+  @@index([status])
+  @@map("billing_transactions")
+}
+
+model Landlord {
+  id                       String             @id @default(cuid())
+  name                     String
+  email                    String             @unique
+  passwordHash             String             @map("password_hash")
+  phone                    String?
+  planId                   String?            @map("plan_id")
+  subscriptionStatus       SubscriptionStatus @default(ACTIVE) @map("subscription_status")
+  nextBillingDate          DateTime?          @map("next_billing_date")
+  paystackCustomerCode     String?            @map("paystack_customer_code")
+  paystackSubscriptionCode String?            @map("paystack_subscription_code")
+  createdAt                DateTime           @default(now()) @map("created_at")
+  updatedAt                DateTime           @updatedAt @map("updated_at")
+
+  plan                 SubscriptionPlan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
+  properties           Property[]
+  secretaries          Secretary[]
+  tenants              Tenant[]
+  payments             Payment[]
+  complaints           Complaint[]
+  auditLogs            PaymentAuditLog[]
+  maintenanceRequests  MaintenanceRequest[]
+  notices              Notice[]
+  houseRules           HouseRules[]
   paystackTransactions PaystackTransaction[]
+  billingTransactions  BillingTransaction[]
 
+  @@index([planId])
   @@map("landlords")
 }
 
@@ -147,32 +216,32 @@ model Room {
 }
 
 model Tenant {
-  id                String    @id @default(cuid())
-  landlordId        String    @map("landlord_id")
-  roomId            String?   @map("room_id")
-  name              String
-  email             String    @unique
-  phone             String?
-  photoUrl          String?   @map("photo_url")
-  passwordHash      String?   @map("password_hash")
-  inviteToken       String?   @unique @map("invite_token")
-  inviteAcceptedAt  DateTime? @map("invite_accepted_at")
-  dateCommencement  DateTime? @map("date_commencement")
-  dateExpiration    DateTime? @map("date_expiration")
-  dateRenewal       DateTime? @map("date_renewal")
-  securityDeposit   Decimal?  @map("security_deposit") @db.Decimal(12, 2)
-  registeredById    String?   @map("registered_by_id")
-  registeredByRole  ActorRole? @map("registered_by_role")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  id               String     @id @default(cuid())
+  landlordId       String     @map("landlord_id")
+  roomId           String?    @map("room_id")
+  name             String
+  email            String     @unique
+  phone            String?
+  photoUrl         String?    @map("photo_url")
+  passwordHash     String?    @map("password_hash")
+  inviteToken      String?    @unique @map("invite_token")
+  inviteAcceptedAt DateTime?  @map("invite_accepted_at")
+  dateCommencement DateTime?  @map("date_commencement")
+  dateExpiration   DateTime?  @map("date_expiration")
+  dateRenewal      DateTime?  @map("date_renewal")
+  securityDeposit  Decimal?   @map("security_deposit") @db.Decimal(12, 2)
+  registeredById   String?    @map("registered_by_id")
+  registeredByRole ActorRole? @map("registered_by_role")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
 
-  landlord            Landlord             @relation(fields: [landlordId], references: [id], onDelete: Cascade)
-  room                Room?                @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  payments            Payment[]
-  documents           Document[]
-  complaints          Complaint[]
-  maintenanceRequests MaintenanceRequest[]
-  notices             Notice[]
+  landlord             Landlord              @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+  room                 Room?                 @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  payments             Payment[]
+  documents            Document[]
+  complaints           Complaint[]
+  maintenanceRequests  MaintenanceRequest[]
+  notices              Notice[]
   paystackTransactions PaystackTransaction[]
 
   @@index([landlordId])
@@ -200,8 +269,8 @@ model Payment {
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @updatedAt @map("updated_at")
 
-  landlord Landlord          @relation(fields: [landlordId], references: [id], onDelete: Cascade)
-  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  landlord  Landlord          @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   auditLogs PaymentAuditLog[]
 
   @@index([landlordId])

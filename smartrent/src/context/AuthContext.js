@@ -13,11 +13,17 @@ function normalize(profile, role) {
   return { ...profile, role, fullName: profile.name };
 }
 
-const PROFILE_PATH = { landlord: "/landlord/profile", secretary: "/secretary/profile", tenant: "/tenant/profile" };
+const PROFILE_PATH = {
+  landlord: "/landlord/profile",
+  secretary: "/secretary/profile",
+  tenant: "/tenant/profile",
+  superadmin: "/superadmin/profile",
+};
 const LOGIN_PATH = {
   landlord: "/auth/landlord/login",
   secretary: "/auth/secretary/login",
   tenant: "/auth/tenant/login",
+  superadmin: "/auth/superadmin/login",
 };
 const CHANGE_PASSWORD_PATH = {
   landlord: "/auth/landlord/change-password",
@@ -119,6 +125,7 @@ export function AuthProvider({ children }) {
   }
 
   const isStaff = user?.role === "landlord" || user?.role === "secretary";
+  const isSuperAdmin = user?.role === "superadmin";
 
   return (
     <AuthContext.Provider
@@ -126,6 +133,7 @@ export function AuthProvider({ children }) {
         user,
         ready,
         isStaff,
+        isSuperAdmin,
         login,
         registerLandlord,
         acceptInvite,
