@@ -30,7 +30,8 @@ function PropertyThumb({ property }) {
 }
 
 function PropertyForm({ initial, onSubmit, onCancel, submitting, error }) {
-  const [form, setForm] = useState(initial || { name: "", address: "", ownershipType: "PERSONAL" });
+  const isEdit = !!initial;
+  const [form, setForm] = useState(initial || { name: "", address: "", ownershipType: "PERSONAL", propertyType: "RESIDENTIAL" });
 
   return (
     <form
@@ -40,9 +41,9 @@ function PropertyForm({ initial, onSubmit, onCancel, submitting, error }) {
       }}
     >
       <FormField
-        label="Property Name"
+        label={form.propertyType === "COMMERCIAL" ? "Store Name" : "Property Name"}
         name="name"
-        placeholder="e.g. Sunrise Apartments"
+        placeholder={form.propertyType === "COMMERCIAL" ? "e.g. Lekki Plaza" : "e.g. Sunrise Apartments"}
         value={form.name}
         onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
         required
@@ -55,6 +56,32 @@ function PropertyForm({ initial, onSubmit, onCancel, submitting, error }) {
         onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
         required
       />
+      {!isEdit && (
+        <div className="mb-4">
+          <label className="mb-1.5 block text-sm font-semibold text-ink-700">Property Type</label>
+          <div className="grid grid-cols-2 gap-2.5">
+            {["RESIDENTIAL", "COMMERCIAL"].map((type) => (
+              <button
+                type="button"
+                key={type}
+                onClick={() => setForm((f) => ({ ...f, propertyType: type }))}
+                className={`rounded-xl border py-2.5 text-sm font-semibold transition ${
+                  form.propertyType === type
+                    ? "border-brand-500 bg-brand-50 text-brand-700"
+                    : "border-ink-200 bg-white text-ink-500 hover:border-brand-300"
+                }`}
+              >
+                {type === "RESIDENTIAL" ? "Residential" : "Commercial (Store)"}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-xs text-ink-400">
+            {form.propertyType === "COMMERCIAL"
+              ? "Units are rented to Shop Owners with business details instead of tenants."
+              : "Rooms are rented to residential tenants."}
+          </p>
+        </div>
+      )}
       <div className="mb-4">
         <label className="mb-1.5 block text-sm font-semibold text-ink-700">Ownership Type</label>
         <div className="grid grid-cols-2 gap-2.5">
@@ -177,15 +204,18 @@ export default function Properties() {
               <Link to={`/dashboard/staff/properties/${p.id}`} className="block">
                 <div className="flex items-start justify-between gap-2">
                   <PropertyThumb property={p} />
-                  <Badge tone={p.ownershipType === "ORGANIZATION" ? "brand" : "ink"}>
-                    {p.ownershipType === "ORGANIZATION" ? "Organization" : "Personal"}
-                  </Badge>
+                  <div className="flex flex-col items-end gap-1.5">
+                    {p.propertyType === "COMMERCIAL" && <Badge tone="amber">Store</Badge>}
+                    <Badge tone={p.ownershipType === "ORGANIZATION" ? "brand" : "ink"}>
+                      {p.ownershipType === "ORGANIZATION" ? "Organization" : "Personal"}
+                    </Badge>
+                  </div>
                 </div>
                 <h3 className="mt-4 text-base font-bold text-ink-900">{p.name}</h3>
                 <p className="mt-1 text-sm text-ink-500">{p.address}</p>
                 <div className="mt-4 flex items-center justify-between text-sm">
                   <span className="text-ink-500">
-                    {p.occupiedRooms}/{p.totalRooms} rooms occupied
+                    {p.occupiedRooms}/{p.totalRooms} {p.propertyType === "COMMERCIAL" ? "units" : "rooms"} occupied
                   </span>
                   <FaChevronRight className="text-ink-300" size={13} />
                 </div>

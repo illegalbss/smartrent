@@ -41,6 +41,7 @@ async function createPayment(req, res, next) {
 
     const tenant = await prisma.tenant.findFirst({
       where: { id: req.params.tenantId, landlordId: req.landlordId },
+      include: { room: { select: { rentFrequency: true } } },
     });
     if (!tenant) return res.status(404).json({ success: false, error: "Tenant not found." });
     if (!tenant.roomId) {
@@ -49,7 +50,7 @@ async function createPayment(req, res, next) {
 
     const { amount, datePaid, coverageStart, coverageEnd, status, notes } = req.body;
     const staffName = await getStaffName(req.staffId, req.staffRole);
-    const coverage = resolveCoverage({ datePaid, coverageStart, coverageEnd });
+    const coverage = resolveCoverage({ datePaid, coverageStart, coverageEnd, rentFrequency: tenant.room.rentFrequency });
 
     const payment = await prisma.payment.create({
       data: {

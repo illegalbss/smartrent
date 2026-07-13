@@ -1,6 +1,7 @@
 const PDFKit = require("pdfkit");
 const prisma = require("../config/prisma");
 const storage = require("../services/storage");
+const { frequencyLabel } = require("../services/rentFrequency");
 
 function formatDate(date) {
   if (!date) return "________________";
@@ -21,41 +22,48 @@ function renderPdfBuffer(tenant) {
     doc.on("error", reject);
 
     const property = tenant.room.property;
+    const isShopOwner = tenant.occupantType === "SHOP_OWNER";
+    const occupantWord = isShopOwner ? "Shop Owner" : "Tenant";
+    const roomWord = isShopOwner ? "Unit/Shop" : "Room/Apartment";
 
-    doc.fontSize(18).text("TENANCY AGREEMENT", { align: "center" });
+    doc.fontSize(18).text(isShopOwner ? "SHOP LEASE AGREEMENT" : "TENANCY AGREEMENT", { align: "center" });
     doc.moveDown(1.5);
 
     doc.fontSize(11).text(
-      `This Tenancy Agreement is made this ${formatDate(new Date())} between ${property.name} ` +
-        `(the "Landlord") and ${tenant.name} (the "Tenant"), for the letting of the premises described below.`
+      `This ${isShopOwner ? "Lease" : "Tenancy"} Agreement is made this ${formatDate(new Date())} between ${property.name} ` +
+        `(the "Landlord") and ${tenant.name} (the "${occupantWord}"), for the letting of the premises described below.`
     );
     doc.moveDown();
 
     doc.fontSize(13).text("1. Premises", { underline: true });
     doc.fontSize(11).text(`Property: ${property.name}`);
     doc.text(`Address: ${property.address}`);
-    doc.text(`Room/Apartment Number: ${tenant.room.roomNumber}`);
+    doc.text(`${roomWord} Number: ${tenant.room.roomNumber}`);
     doc.moveDown();
 
-    doc.fontSize(13).text("2. Tenant Details", { underline: true });
+    doc.fontSize(13).text(`2. ${occupantWord} Details`, { underline: true });
     doc.fontSize(11).text(`Name: ${tenant.name}`);
     doc.text(`Phone Number: ${tenant.phone || "—"}`);
     doc.text(`Email: ${tenant.email}`);
+    if (isShopOwner) {
+      doc.text(`Business Name: ${tenant.businessName || "—"}`);
+      doc.text(`CAC Registration Number: ${tenant.cacNumber || "—"}`);
+    }
     doc.moveDown();
 
-    doc.fontSize(13).text("3. Term of Tenancy", { underline: true });
+    doc.fontSize(13).text(`3. Term of ${isShopOwner ? "Lease" : "Tenancy"}`, { underline: true });
     doc.fontSize(11).text(`Date of Commencement: ${formatDate(tenant.dateCommencement)}`);
     doc.text(`Date of Expiration: ${formatDate(tenant.dateExpiration)}`);
     doc.text(`Renewal Date: ${formatDate(tenant.dateRenewal)}`);
     doc.moveDown();
 
     doc.fontSize(13).text("4. Rent", { underline: true });
-    doc.fontSize(11).text(`Rent Amount: ${formatNaira(tenant.room.rentAmount)} per annum`);
+    doc.fontSize(11).text(`Rent Amount: ${formatNaira(tenant.room.rentAmount)} per ${frequencyLabel(tenant.room.rentFrequency)}`);
     doc.moveDown(2);
 
     doc.fontSize(11).text("Landlord Signature: ______________________          Date: ______________");
     doc.moveDown();
-    doc.text("Tenant Signature: ______________________          Date: ______________");
+    doc.text(`${occupantWord} Signature: ______________________          Date: ______________`);
 
     doc.end();
   });

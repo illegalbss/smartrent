@@ -25,7 +25,16 @@ function toTableRow(tenant) {
     email: tenant.email,
     phone: tenant.phone,
     hasPhoto: !!tenant.photoUrl,
-    room: tenant.room ? { id: tenant.room.id, roomNumber: tenant.room.roomNumber, propertyName: tenant.room.property.name } : null,
+    occupantType: tenant.occupantType,
+    businessName: tenant.businessName,
+    room: tenant.room
+      ? {
+          id: tenant.room.id,
+          roomNumber: tenant.room.roomNumber,
+          propertyName: tenant.room.property.name,
+          propertyType: tenant.room.property.propertyType,
+        }
+      : null,
     dateCommencement: tenant.dateCommencement,
     dateExpiration: tenant.dateExpiration,
     dateRenewal: tenant.dateRenewal,
@@ -48,20 +57,42 @@ async function registerTenant(req, res, next) {
       return res.status(400).json({ success: false, error: errors.array()[0].msg });
     }
 
-    const { name, email, phone, roomId, dateCommencement, dateExpiration, dateRenewal, securityDeposit } = req.body;
+    const {
+      name,
+      email,
+      phone,
+      roomId,
+      dateCommencement,
+      dateExpiration,
+      dateRenewal,
+      securityDeposit,
+      occupantType,
+      businessName,
+      cacNumber,
+      nextOfKinName,
+      nextOfKinPhone,
+    } = req.body;
 
     const existing = await prisma.tenant.findUnique({ where: { email: email.toLowerCase() } });
     if (existing) {
       return res.status(409).json({ success: false, error: "A tenant with this email already exists." });
     }
 
+    // Occupant type follows the room's property: a room on a Commercial
+    // property is rented to a Shop Owner, Residential to a Tenant — so the
+    // UI never has to ask separately, it just adapts to which room is picked.
     let room = null;
+    let resolvedOccupantType = occupantType || "RESIDENTIAL_TENANT";
     if (roomId) {
-      room = await prisma.room.findFirst({ where: { id: roomId, property: { landlordId: req.landlordId } } });
+      room = await prisma.room.findFirst({
+        where: { id: roomId, property: { landlordId: req.landlordId } },
+        include: { property: { select: { propertyType: true } } },
+      });
       if (!room) return res.status(404).json({ success: false, error: "Room not found." });
       if (room.status === "OCCUPIED") {
         return res.status(409).json({ success: false, error: "This room already has a tenant." });
       }
+      resolvedOccupantType = room.property.propertyType === "COMMERCIAL" ? "SHOP_OWNER" : "RESIDENTIAL_TENANT";
     }
 
     const inviteToken = crypto.randomBytes(24).toString("hex");
@@ -69,6 +100,7 @@ async function registerTenant(req, res, next) {
       data: {
         landlordId: req.landlordId,
         roomId: room?.id || null,
+        occupantType: resolvedOccupantType,
         name,
         email: email.toLowerCase(),
         phone,
@@ -76,6 +108,10 @@ async function registerTenant(req, res, next) {
         dateExpiration: dateExpiration ? new Date(dateExpiration) : null,
         dateRenewal: dateRenewal ? new Date(dateRenewal) : null,
         securityDeposit: securityDeposit || null,
+        businessName: businessName || null,
+        cacNumber: cacNumber || null,
+        nextOfKinName: nextOfKinName || null,
+        nextOfKinPhone: nextOfKinPhone || null,
         inviteToken,
         registeredById: req.staffId,
         registeredByRole: req.staffRole,
@@ -119,7 +155,7 @@ async function listTenants(req, res, next) {
       prisma.tenant.findMany({
         where,
         include: {
-          room: { include: { property: { select: { name: true } } } },
+          room: { include: { property: { select: { name: true, propertyType: true } } } },
           payments: { orderBy: { datePaid: "desc" }, take: 1 },
         },
         orderBy: { createdAt: "desc" },
@@ -144,7 +180,7 @@ async function getTenant(req, res, next) {
     const tenant = await prisma.tenant.findFirst({
       where: { id: req.params.tenantId, landlordId: req.landlordId },
       include: {
-        room: { include: { property: { select: { name: true, address: true } } } },
+        room: { include: { property: { select: { name: true, address: true, propertyType: true } } } },
         payments: { orderBy: { datePaid: "desc" } },
         documents: true,
       },
@@ -174,17 +210,36 @@ async function updateTenant(req, res, next) {
     const tenant = await prisma.tenant.findFirst({ where: { id: req.params.tenantId, landlordId: req.landlordId } });
     if (!tenant) return res.status(404).json({ success: false, error: "Tenant not found." });
 
-    const { name, phone, dateCommencement, dateExpiration, dateRenewal, roomId, securityDeposit } = req.body;
+    const {
+      name,
+      phone,
+      dateCommencement,
+      dateExpiration,
+      dateRenewal,
+      roomId,
+      securityDeposit,
+      businessName,
+      cacNumber,
+      nextOfKinName,
+      nextOfKinPhone,
+    } = req.body;
 
-    // Handle room reassignment: free the old room, occupy the new one.
+    // Handle room reassignment: free the old room, occupy the new one, and
+    // re-derive occupantType from the new room's property (a tenant moving
+    // into a Commercial unit becomes a Shop Owner, and vice versa).
+    let occupantTypeUpdate;
     if (roomId !== undefined && roomId !== tenant.roomId) {
       if (roomId) {
-        const newRoom = await prisma.room.findFirst({ where: { id: roomId, property: { landlordId: req.landlordId } } });
+        const newRoom = await prisma.room.findFirst({
+          where: { id: roomId, property: { landlordId: req.landlordId } },
+          include: { property: { select: { propertyType: true } } },
+        });
         if (!newRoom) return res.status(404).json({ success: false, error: "Room not found." });
         if (newRoom.status === "OCCUPIED") {
           return res.status(409).json({ success: false, error: "This room already has a tenant." });
         }
         await prisma.room.update({ where: { id: newRoom.id }, data: { status: "OCCUPIED" } });
+        occupantTypeUpdate = newRoom.property.propertyType === "COMMERCIAL" ? "SHOP_OWNER" : "RESIDENTIAL_TENANT";
       }
       if (tenant.roomId) {
         await prisma.room.update({ where: { id: tenant.roomId }, data: { status: "VACANT" } });
@@ -200,7 +255,12 @@ async function updateTenant(req, res, next) {
         ...(dateExpiration !== undefined && { dateExpiration: dateExpiration ? new Date(dateExpiration) : null }),
         ...(dateRenewal !== undefined && { dateRenewal: dateRenewal ? new Date(dateRenewal) : null }),
         ...(roomId !== undefined && { roomId: roomId || null }),
+        ...(occupantTypeUpdate !== undefined && { occupantType: occupantTypeUpdate }),
         ...(securityDeposit !== undefined && { securityDeposit: securityDeposit || null }),
+        ...(businessName !== undefined && { businessName: businessName || null }),
+        ...(cacNumber !== undefined && { cacNumber: cacNumber || null }),
+        ...(nextOfKinName !== undefined && { nextOfKinName: nextOfKinName || null }),
+        ...(nextOfKinPhone !== undefined && { nextOfKinPhone: nextOfKinPhone || null }),
       },
     });
     res.json({ success: true, data: sanitize(updated) });

@@ -1,6 +1,7 @@
 const PDFKit = require("pdfkit");
 const prisma = require("../config/prisma");
 const { computeTenantPaymentStatus } = require("../services/tenantPaymentStatus");
+const { frequencyLabel } = require("../services/rentFrequency");
 
 function formatDate(date) {
   if (!date) return "—";
@@ -205,7 +206,7 @@ function renderInvoiceBuffer(tenant, paymentStatus, landlordName) {
     doc.fontSize(14).text(`Amount Due: ${formatNaira(paymentStatus.outstanding)}`);
     doc.moveDown(0.5);
     doc.fontSize(11);
-    doc.text(`Annual Rent: ${formatNaira(tenant.room.rentAmount)}`);
+    doc.text(`Rent: ${formatNaira(tenant.room.rentAmount)} per ${frequencyLabel(tenant.room.rentFrequency)}`);
     doc.text(`Due Date: ${formatDate(paymentStatus.nextDueDate)}`);
     if (paymentStatus.isOverdue) {
       doc.fillColor("#c0392b").text(`Status: OVERDUE by ${Math.abs(paymentStatus.daysUntilDue)} day(s)`);

@@ -48,14 +48,20 @@ async function createRoom(req, res, next) {
       }
     }
 
-    const { roomNumber, rentAmount, status } = req.body;
+    const { roomNumber, rentAmount, rentFrequency, status } = req.body;
     const existing = await prisma.room.findFirst({ where: { propertyId: property.id, roomNumber } });
     if (existing) {
       return res.status(409).json({ success: false, error: "A room with this number already exists on this property." });
     }
 
     const room = await prisma.room.create({
-      data: { propertyId: property.id, roomNumber, rentAmount, status: status || "VACANT" },
+      data: {
+        propertyId: property.id,
+        roomNumber,
+        rentAmount,
+        rentFrequency: rentFrequency || "YEARLY",
+        status: status || "VACANT",
+      },
     });
     res.status(201).json({ success: true, data: room });
   } catch (err) {
@@ -74,12 +80,13 @@ async function updateRoom(req, res, next) {
     });
     if (!room) return res.status(404).json({ success: false, error: "Room not found." });
 
-    const { roomNumber, rentAmount, status } = req.body;
+    const { roomNumber, rentAmount, rentFrequency, status } = req.body;
     const updated = await prisma.room.update({
       where: { id: room.id },
       data: {
         ...(roomNumber !== undefined && { roomNumber }),
         ...(rentAmount !== undefined && { rentAmount }),
+        ...(rentFrequency !== undefined && { rentFrequency }),
         ...(status !== undefined && { status }),
       },
     });

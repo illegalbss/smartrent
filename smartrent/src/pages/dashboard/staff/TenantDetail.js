@@ -46,6 +46,8 @@ const DOC_TYPES = [
 const TABS = ["Overview", "Payments", "Financial Reports", "Complaints", "Documents", "Lease Info"];
 
 const PRIORITY_TONE = { LOW: "ink", MEDIUM: "amber", HIGH: "red" };
+const FREQUENCY_SHORT = { MONTHLY: "mo", QUARTERLY: "qtr", YEARLY: "yr" };
+const FREQUENCY_LABEL = { MONTHLY: "month", QUARTERLY: "quarter", YEARLY: "year" };
 
 function leaseStatus(tenant) {
   if (!tenant.dateExpiration) return { label: "No Lease End Set", tone: "ink" };
@@ -128,7 +130,7 @@ function TenantEditForm({ tenant, onSubmit, onCancel, submitting, error }) {
             <option value="">No room selected</option>
             {rooms.map((r) => (
               <option key={r.id} value={r.id}>
-                Room {r.roomNumber} — {formatNaira(r.rentAmount)}/yr{r.id === tenant.roomId ? " (current)" : ""}
+                Room {r.roomNumber} — {formatNaira(r.rentAmount)}/{FREQUENCY_SHORT[r.rentFrequency || "YEARLY"]}{r.id === tenant.roomId ? " (current)" : ""}
               </option>
             ))}
           </select>
@@ -213,7 +215,13 @@ function OverviewTab({ tenant }) {
   const ps = tenant.paymentStatus;
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <StatCard label="Total Rent" value={tenant.room ? formatNairaCompact(tenant.room.rentAmount) : "—"} title={tenant.room ? formatNaira(tenant.room.rentAmount) : undefined} icon={FaHome} sub="per annum" />
+      <StatCard
+        label="Rent"
+        value={tenant.room ? formatNairaCompact(tenant.room.rentAmount) : "—"}
+        title={tenant.room ? formatNaira(tenant.room.rentAmount) : undefined}
+        icon={FaHome}
+        sub={tenant.room ? `per ${FREQUENCY_LABEL[tenant.room.rentFrequency || "YEARLY"]}` : undefined}
+      />
       <StatCard label="Amount Paid" value={formatNairaCompact(tenant.finance.totalCollected)} title={formatNaira(tenant.finance.totalCollected)} icon={FaCheckCircle} />
       <StatCard label="Outstanding Balance" value={formatNairaCompact(ps.outstanding)} title={formatNaira(ps.outstanding)} icon={FaMoneyBillWave} />
       <StatCard
@@ -297,7 +305,12 @@ function PaymentsTab({ tenant, tenantId, onAdd, onEdit, onDelete }) {
   );
 }
 
-function computeYearlyReport(payments, year, rentAmount, month) {
+const PERIODS_PER_YEAR = { MONTHLY: 12, QUARTERLY: 4, YEARLY: 1 };
+
+function computeYearlyReport(payments, year, room, month) {
+  const annualExpected = room ? Number(room.rentAmount) * (PERIODS_PER_YEAR[room.rentFrequency || "YEARLY"] || 1) : 0;
+  const totalExpected = month === "ALL" ? annualExpected : annualExpected / 12;
+
   const inYear = payments.filter((p) => new Date(p.datePaid).getFullYear() === year);
   const inScope = month === "ALL" ? inYear : inYear.filter((p) => new Date(p.datePaid).getMonth() === Number(month));
 
@@ -321,7 +334,7 @@ function computeYearlyReport(payments, year, rentAmount, month) {
   });
 
   return {
-    totalExpected: rentAmount,
+    totalExpected,
     totalCollected,
     totalOwing,
     collectionRate: totalCollected + totalOwing > 0 ? Math.round((totalCollected / (totalCollected + totalOwing)) * 1000) / 10 : 0,
@@ -333,11 +346,23 @@ function computeYearlyReport(payments, year, rentAmount, month) {
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 function FinancialReportsTab({ tenant }) {
-  const years = Array.from(new Set([new Date().getFullYear(), ...tenant.payments.map((p) => new Date(p.datePaid).getFullYear())])).sort((a, b) => b - a);
+  const currentYear = new Date().getFullYear();
+  const candidateYears = [
+    currentYear,
+    ...tenant.payments.map((p) => new Date(p.datePaid).getFullYear()),
+    ...(tenant.dateCommencement ? [new Date(tenant.dateCommencement).getFullYear()] : []),
+  ];
+  const earliestYear = Math.min(...candidateYears);
+  // Continuous range, not just the discrete years that happen to have payments —
+  // otherwise a tenant with only 2021 and 2026 payments would show a dropdown
+  // skipping straight from 2026 to 2021 with nothing in between.
+  const years = [];
+  for (let y = currentYear; y >= earliestYear; y--) years.push(y);
+
   const [year, setYear] = useState(years[0]);
   const [month, setMonth] = useState("ALL");
 
-  const report = computeYearlyReport(tenant.payments, year, tenant.room?.rentAmount || 0, month);
+  const report = computeYearlyReport(tenant.payments, year, tenant.room, month);
 
   return (
     <div className="space-y-5">
@@ -672,7 +697,9 @@ function LeaseInfoTab({ tenant }) {
         </div>
         <div>
           <div className="text-xs font-semibold uppercase text-ink-400">Rent Amount</div>
-          <div className="mt-1 text-sm font-semibold text-ink-800">{tenant.room ? `${formatNaira(tenant.room.rentAmount)} / year` : "—"}</div>
+          <div className="mt-1 text-sm font-semibold text-ink-800">
+            {tenant.room ? `${formatNaira(tenant.room.rentAmount)} / ${FREQUENCY_LABEL[tenant.room.rentFrequency || "YEARLY"]}` : "—"}
+          </div>
         </div>
         <div>
           <div className="text-xs font-semibold uppercase text-ink-400">Security Deposit</div>
@@ -680,7 +707,9 @@ function LeaseInfoTab({ tenant }) {
         </div>
         <div>
           <div className="text-xs font-semibold uppercase text-ink-400">Payment Frequency</div>
-          <div className="mt-1 text-sm font-semibold text-ink-800">Annual</div>
+          <div className="mt-1 text-sm font-semibold capitalize text-ink-800">
+            {tenant.room ? FREQUENCY_LABEL[tenant.room.rentFrequency || "YEARLY"] + "ly" : "—"}
+          </div>
         </div>
         <div>
           <div className="text-xs font-semibold uppercase text-ink-400">Renewal Date</div>

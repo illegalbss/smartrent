@@ -28,8 +28,10 @@ import { STAFF_NAV } from "../../../config/navigation";
 import { propertiesApi, roomsApi } from "../../../api/properties";
 import { tenantsApi } from "../../../api/tenants";
 
-function RoomForm({ initial, onSubmit, onCancel, submitting, error }) {
-  const [form, setForm] = useState(initial || { roomNumber: "", rentAmount: "" });
+const FREQUENCY_LABEL = { MONTHLY: "month", QUARTERLY: "quarter", YEARLY: "year" };
+
+function RoomForm({ initial, isCommercial, onSubmit, onCancel, submitting, error }) {
+  const [form, setForm] = useState(initial || { roomNumber: "", rentAmount: "", rentFrequency: isCommercial ? "MONTHLY" : "YEARLY" });
 
   return (
     <form
@@ -39,15 +41,15 @@ function RoomForm({ initial, onSubmit, onCancel, submitting, error }) {
       }}
     >
       <FormField
-        label="Room / Apartment Number"
+        label={isCommercial ? "Unit / Shop Number" : "Room / Apartment Number"}
         name="roomNumber"
-        placeholder="e.g. A1"
+        placeholder={isCommercial ? "e.g. Shop 1" : "e.g. A1"}
         value={form.roomNumber}
         onChange={(e) => setForm((f) => ({ ...f, roomNumber: e.target.value }))}
         required
       />
       <FormField
-        label="Rent Amount (₦ per annum)"
+        label={`Rent Amount (₦ per ${FREQUENCY_LABEL[form.rentFrequency]})`}
         name="rentAmount"
         type="number"
         placeholder="e.g. 500000"
@@ -55,6 +57,25 @@ function RoomForm({ initial, onSubmit, onCancel, submitting, error }) {
         onChange={(e) => setForm((f) => ({ ...f, rentAmount: e.target.value }))}
         required
       />
+      {isCommercial && (
+        <div className="mb-4">
+          <label className="mb-1.5 block text-sm font-semibold text-ink-700">Rent Frequency</label>
+          <div className="grid grid-cols-3 gap-2">
+            {["MONTHLY", "QUARTERLY", "YEARLY"].map((freq) => (
+              <button
+                type="button"
+                key={freq}
+                onClick={() => setForm((f) => ({ ...f, rentFrequency: freq }))}
+                className={`rounded-xl border py-2 text-xs font-bold transition ${
+                  form.rentFrequency === freq ? "border-brand-500 bg-brand-50 text-brand-700" : "border-ink-200 text-ink-500 hover:border-brand-300"
+                }`}
+              >
+                {freq === "MONTHLY" ? "Monthly" : freq === "QUARTERLY" ? "Quarterly" : "Yearly"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {error && <p className="mb-4 text-sm font-medium text-red-500">{error}</p>}
       <div className="flex gap-3">
         <button
@@ -181,7 +202,7 @@ export default function PropertyDetail() {
     setSubmitting(true);
     setFormError("");
     try {
-      const payload = { roomNumber: form.roomNumber, rentAmount: Number(form.rentAmount) };
+      const payload = { roomNumber: form.roomNumber, rentAmount: Number(form.rentAmount), rentFrequency: form.rentFrequency };
       if (modal.mode === "add") {
         await roomsApi.create(id, payload);
       } else {
@@ -232,7 +253,11 @@ export default function PropertyDetail() {
   }
 
   const stats = property?.stats;
-  const totalRentExpected = property?.rooms?.reduce((sum, r) => sum + Number(r.rentAmount), 0) || 0;
+  const isCommercial = property?.propertyType === "COMMERCIAL";
+  const roomWord = isCommercial ? "Unit" : "Room";
+  const roomWordPlural = isCommercial ? "Units" : "Rooms";
+  const occupantWord = isCommercial ? "Shop Owner" : "Tenant";
+  const totalRentExpected = stats?.annualRentExpected || 0;
   const collectionRate =
     stats && stats.totalCollected + stats.totalOwing > 0
       ? Math.round((stats.totalCollected / (stats.totalCollected + stats.totalOwing)) * 1000) / 10
@@ -284,6 +309,7 @@ export default function PropertyDetail() {
               <div className="flex flex-wrap items-center gap-2.5">
                 <h2 className="text-xl font-extrabold text-ink-900">{property.name}</h2>
                 <Badge tone="green">Active Property</Badge>
+                {isCommercial && <Badge tone="amber">Store</Badge>}
                 <Badge tone={property.ownershipType === "ORGANIZATION" ? "brand" : "ink"}>
                   {property.ownershipType === "ORGANIZATION" ? "Organization" : "Personal"}
                 </Badge>
@@ -326,10 +352,10 @@ export default function PropertyDetail() {
 
           {/* 6 property statistics */}
           <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <StatCard label="Total Rooms" value={stats.totalRooms} icon={FaDoorOpen} />
-            <StatCard label="Occupied Rooms" value={stats.occupiedRooms} icon={FaCheckCircle} />
-            <StatCard label="Vacant Rooms" value={stats.vacantRooms} icon={FaDoorOpen} />
-            <StatCard label="Total Tenants" value={stats.tenantCount} icon={FaUsers} />
+            <StatCard label={`Total ${roomWordPlural}`} value={stats.totalRooms} icon={FaDoorOpen} />
+            <StatCard label={`Occupied ${roomWordPlural}`} value={stats.occupiedRooms} icon={FaCheckCircle} />
+            <StatCard label={`Vacant ${roomWordPlural}`} value={stats.vacantRooms} icon={FaDoorOpen} />
+            <StatCard label={`Total ${occupantWord}s`} value={stats.tenantCount} icon={FaUsers} />
             <StatCard label="Complaints" value={stats.openComplaints} icon={FaCommentDots} sub={stats.openComplaints > 0 ? "Unresolved" : "All clear"} />
             <StatCard label="Maintenance" value={stats.pendingMaintenance} icon={FaTools} sub={stats.pendingMaintenance > 0 ? "Pending" : "All clear"} />
           </div>
@@ -378,23 +404,23 @@ export default function PropertyDetail() {
 
           {/* Tenant table */}
           <Card
-            title={`Tenants in ${property.name}`}
+            title={`${occupantWord}s in ${property.name}`}
             action={
               <Link to={`/dashboard/staff/properties/${property.id}/tenants`} className="text-xs font-bold text-brand-600 hover:text-brand-700">
-                View All Tenants
+                View All {occupantWord}s
               </Link>
             }
             className="mb-5"
           >
             {!tenants || tenants.length === 0 ? (
-              <p className="text-sm text-ink-400">No tenants assigned to this property yet.</p>
+              <p className="text-sm text-ink-400">No {occupantWord.toLowerCase()}s assigned to this property yet.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="border-b border-ink-100 text-xs font-bold uppercase text-ink-400">
                     <tr>
-                      <th className="py-2 pr-4">Tenant</th>
-                      <th className="py-2 pr-4">Room</th>
+                      <th className="py-2 pr-4">{occupantWord}</th>
+                      <th className="py-2 pr-4">{roomWord}</th>
                       <th className="py-2 pr-4">Phone</th>
                       <th className="py-2 pr-4">Status</th>
                       <th className="py-2 pr-4">Next Due Date</th>
@@ -448,7 +474,7 @@ export default function PropertyDetail() {
                   <thead className="border-b border-ink-100 text-xs font-bold uppercase text-ink-400">
                     <tr>
                       <th className="py-2 pr-4">Complaint</th>
-                      <th className="py-2 pr-4">Tenant</th>
+                      <th className="py-2 pr-4">{occupantWord}</th>
                       <th className="py-2 pr-4">Status</th>
                       <th className="py-2 pr-4">Date</th>
                     </tr>
@@ -470,22 +496,22 @@ export default function PropertyDetail() {
             )}
           </Card>
 
-          {/* Rooms management — searchable/filterable so properties with 50+ rooms stay usable */}
+          {/* Rooms/Units management — searchable/filterable so properties with 50+ rooms stay usable */}
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-sm font-bold text-ink-900">Rooms ({property.rooms.length})</h2>
+            <h2 className="text-sm font-bold text-ink-900">{roomWordPlural} ({property.rooms.length})</h2>
             <button
               onClick={() => setModal({ mode: "add" })}
               className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white shadow-card transition hover:bg-brand-600"
             >
-              <FaPlus size={12} /> Add Room
+              <FaPlus size={12} /> Add {roomWord}
             </button>
           </div>
 
           {property.rooms.length === 0 && (
             <EmptyState
               icon={FaDoorOpen}
-              title="No rooms yet"
-              body="Add rooms or apartments to this property to start assigning tenants."
+              title={`No ${roomWordPlural.toLowerCase()} yet`}
+              body={`Add ${roomWordPlural.toLowerCase()} to this property to start assigning ${occupantWord.toLowerCase()}s.`}
             />
           )}
 
@@ -498,7 +524,7 @@ export default function PropertyDetail() {
                     <input
                       value={roomSearch}
                       onChange={(e) => setRoomSearch(e.target.value)}
-                      placeholder="Search rooms by number or tenant…"
+                      placeholder={`Search ${roomWordPlural.toLowerCase()} by number or ${occupantWord.toLowerCase()}…`}
                       className="w-full rounded-xl border border-ink-200 bg-white py-2.5 pl-9 pr-3.5 text-sm text-ink-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                     />
                   </div>
@@ -507,7 +533,7 @@ export default function PropertyDetail() {
                     onChange={(e) => setRoomStatusFilter(e.target.value)}
                     className="rounded-xl border border-ink-200 bg-white px-3 py-2.5 text-sm font-semibold text-ink-700 outline-none focus:border-brand-500"
                   >
-                    <option value="ALL">All Rooms</option>
+                    <option value="ALL">All {roomWordPlural}</option>
                     <option value="OCCUPIED">Occupied Only</option>
                     <option value="VACANT">Vacant Only</option>
                   </select>
@@ -517,7 +543,7 @@ export default function PropertyDetail() {
           )}
 
           {property.rooms.length > 0 && visibleRooms.length === 0 && (
-            <EmptyState icon={FaDoorOpen} title="No rooms match your search" />
+            <EmptyState icon={FaDoorOpen} title={`No ${roomWordPlural.toLowerCase()} match your search`} />
           )}
 
           {visibleRooms.length > 0 && (
@@ -527,12 +553,12 @@ export default function PropertyDetail() {
                 return (
                   <Card key={room.id}>
                     <div className="flex items-start justify-between">
-                      <h3 className="text-base font-bold text-ink-900">Room {room.roomNumber}</h3>
+                      <h3 className="text-base font-bold text-ink-900">{roomWord} {room.roomNumber}</h3>
                       <Badge tone={room.status === "OCCUPIED" ? "green" : "amber"}>
                         {room.status === "OCCUPIED" ? "Occupied" : "Vacant"}
                       </Badge>
                     </div>
-                    <p className="mt-1.5 text-sm text-ink-500">{formatNaira(room.rentAmount)} / year</p>
+                    <p className="mt-1.5 text-sm text-ink-500">{formatNaira(room.rentAmount)} / {FREQUENCY_LABEL[room.rentFrequency || "YEARLY"]}</p>
                     {tenant && (
                       <Link
                         to={`/dashboard/staff/tenants/${tenant.id}`}
@@ -567,17 +593,22 @@ export default function PropertyDetail() {
                 onClick={() => setRoomVisibleCount((c) => c + 24)}
                 className="rounded-xl border border-ink-200 bg-white px-5 py-2.5 text-sm font-bold text-ink-600 hover:border-brand-300 hover:text-brand-600"
               >
-                Show More Rooms ({visibleRooms.length - roomVisibleCount} remaining)
+                Show More {roomWordPlural} ({visibleRooms.length - roomVisibleCount} remaining)
               </button>
             </div>
           )}
         </>
       )}
 
-      <Modal open={!!modal} title={modal?.mode === "add" ? "Add Room" : "Edit Room"} onClose={() => setModal(null)}>
+      <Modal open={!!modal} title={modal?.mode === "add" ? `Add ${roomWord}` : `Edit ${roomWord}`} onClose={() => setModal(null)}>
         {modal && (
           <RoomForm
-            initial={modal.mode === "edit" ? { roomNumber: modal.room.roomNumber, rentAmount: modal.room.rentAmount } : undefined}
+            initial={
+              modal.mode === "edit"
+                ? { roomNumber: modal.room.roomNumber, rentAmount: modal.room.rentAmount, rentFrequency: modal.room.rentFrequency || "YEARLY" }
+                : undefined
+            }
+            isCommercial={isCommercial}
             onSubmit={handleSubmit}
             onCancel={() => setModal(null)}
             submitting={submitting}

@@ -26,6 +26,8 @@ const PAYMENT_METHODS = [
   { value: "ussd", label: "USSD", sub: "Pay using your bank's USSD code", icon: FaMobileAlt, channels: ["ussd"] },
 ];
 
+const FREQUENCY_LABEL = { MONTHLY: "month", QUARTERLY: "quarter", YEARLY: "year" };
+
 export default function TenantDashboard() {
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
@@ -125,7 +127,7 @@ export default function TenantDashboard() {
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                 <StatCard label="Property" value={profile.room.property.name} icon={FaHome} sub={profile.room.property.address} />
                 <StatCard label="Room" value={profile.room.roomNumber} icon={FaHome} />
-                <StatCard label="Rent" value={formatNaira(profile.room.rentAmount)} icon={FaMoneyBillWave} sub="per annum" />
+                <StatCard label="Rent" value={formatNaira(profile.room.rentAmount)} icon={FaMoneyBillWave} sub={`per ${FREQUENCY_LABEL[profile.room.rentFrequency || "YEARLY"]}`} />
                 <StatCard
                   label="Outstanding"
                   value={formatNaira(profile.paymentStatus?.outstanding || 0)}

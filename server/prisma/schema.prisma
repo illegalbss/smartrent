@@ -13,9 +13,31 @@ enum OwnershipType {
   PERSONAL
 }
 
+// Residential properties hold Rooms rented to Tenants; Commercial properties
+// ("Stores" in the UI) hold the same Room records rented to Shop Owners —
+// same underlying tables, the UI just relabels and shows business fields.
+enum PropertyType {
+  RESIDENTIAL
+  COMMERCIAL
+}
+
 enum RoomStatus {
   VACANT
   OCCUPIED
+}
+
+enum RentFrequency {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+// Distinguishes a residential Tenant from a commercial Shop Owner within the
+// same occupants table (Tenant model) — the UI shows/requires different
+// fields (business name, CAC number vs. next of kin) based on this.
+enum OccupantType {
+  RESIDENTIAL_TENANT
+  SHOP_OWNER
 }
 
 enum PaymentStatus {
@@ -185,6 +207,7 @@ model Property {
   name          String
   address       String
   ownershipType OwnershipType @default(PERSONAL) @map("ownership_type")
+  propertyType  PropertyType  @default(RESIDENTIAL) @map("property_type")
   photoUrl      String?       @map("photo_url")
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
@@ -199,13 +222,14 @@ model Property {
 }
 
 model Room {
-  id         String     @id @default(cuid())
-  propertyId String     @map("property_id")
-  roomNumber String     @map("room_number")
-  rentAmount Decimal    @map("rent_amount") @db.Decimal(12, 2)
-  status     RoomStatus @default(VACANT)
-  createdAt  DateTime   @default(now()) @map("created_at")
-  updatedAt  DateTime   @updatedAt @map("updated_at")
+  id            String        @id @default(cuid())
+  propertyId    String        @map("property_id")
+  roomNumber    String        @map("room_number")
+  rentAmount    Decimal       @map("rent_amount") @db.Decimal(12, 2)
+  rentFrequency RentFrequency @default(YEARLY) @map("rent_frequency")
+  status        RoomStatus    @default(VACANT)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
 
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   tenants  Tenant[]
@@ -215,25 +239,35 @@ model Room {
   @@map("rooms")
 }
 
+// The single occupants table — a residential Tenant and a commercial Shop
+// Owner are the same record shape, distinguished by occupantType. Business
+// fields (businessName, cacNumber) are only meaningful for SHOP_OWNER;
+// next-of-kin fields are only meaningful for RESIDENTIAL_TENANT. The UI
+// shows/requires the relevant subset based on occupantType.
 model Tenant {
-  id               String     @id @default(cuid())
-  landlordId       String     @map("landlord_id")
-  roomId           String?    @map("room_id")
+  id               String       @id @default(cuid())
+  landlordId       String       @map("landlord_id")
+  roomId           String?      @map("room_id")
+  occupantType     OccupantType @default(RESIDENTIAL_TENANT) @map("occupant_type")
   name             String
-  email            String     @unique
+  email            String       @unique
   phone            String?
-  photoUrl         String?    @map("photo_url")
-  passwordHash     String?    @map("password_hash")
-  inviteToken      String?    @unique @map("invite_token")
-  inviteAcceptedAt DateTime?  @map("invite_accepted_at")
-  dateCommencement DateTime?  @map("date_commencement")
-  dateExpiration   DateTime?  @map("date_expiration")
-  dateRenewal      DateTime?  @map("date_renewal")
-  securityDeposit  Decimal?   @map("security_deposit") @db.Decimal(12, 2)
-  registeredById   String?    @map("registered_by_id")
-  registeredByRole ActorRole? @map("registered_by_role")
-  createdAt        DateTime   @default(now()) @map("created_at")
-  updatedAt        DateTime   @updatedAt @map("updated_at")
+  photoUrl         String?      @map("photo_url")
+  passwordHash     String?      @map("password_hash")
+  inviteToken      String?      @unique @map("invite_token")
+  inviteAcceptedAt DateTime?    @map("invite_accepted_at")
+  dateCommencement DateTime?    @map("date_commencement")
+  dateExpiration   DateTime?    @map("date_expiration")
+  dateRenewal      DateTime?    @map("date_renewal")
+  securityDeposit  Decimal?     @map("security_deposit") @db.Decimal(12, 2)
+  businessName     String?      @map("business_name")
+  cacNumber        String?      @map("cac_number")
+  nextOfKinName    String?      @map("next_of_kin_name")
+  nextOfKinPhone   String?      @map("next_of_kin_phone")
+  registeredById   String?      @map("registered_by_id")
+  registeredByRole ActorRole?   @map("registered_by_role")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
 
   landlord             Landlord              @relation(fields: [landlordId], references: [id], onDelete: Cascade)
   room                 Room?                 @relation(fields: [roomId], references: [id], onDelete: SetNull)

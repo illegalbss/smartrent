@@ -16,6 +16,7 @@ router.post(
     body("roomNumber").trim().notEmpty().withMessage("Room number is required."),
     body("rentAmount").isFloat({ gt: 0 }).withMessage("Rent amount must be a positive number."),
     body("status").optional().isIn(["VACANT", "OCCUPIED"]).withMessage("Invalid room status."),
+    body("rentFrequency").optional().isIn(["MONTHLY", "QUARTERLY", "YEARLY"]).withMessage("Invalid rent frequency."),
   ],
   createRoom
 );
@@ -27,6 +28,7 @@ router.put(
     body("roomNumber").optional().trim().notEmpty().withMessage("Room number cannot be empty."),
     body("rentAmount").optional().isFloat({ gt: 0 }).withMessage("Rent amount must be a positive number."),
     body("status").optional().isIn(["VACANT", "OCCUPIED"]).withMessage("Invalid room status."),
+    body("rentFrequency").optional().isIn(["MONTHLY", "QUARTERLY", "YEARLY"]).withMessage("Invalid rent frequency."),
   ],
   updateRoom
 );

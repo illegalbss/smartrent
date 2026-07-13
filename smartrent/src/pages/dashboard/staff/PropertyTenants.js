@@ -23,6 +23,7 @@ import { tenantsApi } from "../../../api/tenants";
 
 const PAYMENT_TONE = { PAID: "green", PARTIAL: "amber", OWING: "red", NO_PAYMENTS: "ink" };
 const PAYMENT_LABEL = { PAID: "Paid", PARTIAL: "Partial", OWING: "Outstanding", NO_PAYMENTS: "No Payments" };
+const FREQUENCY_SHORT = { MONTHLY: "mo", QUARTERLY: "qtr", YEARLY: "yr" };
 
 function leaseState(tenant) {
   if (!tenant.dateExpiration) return "NONE";
@@ -43,6 +44,8 @@ function PropertyThumb({ property }) {
 }
 
 function RegisterTenantForm({ property, rooms, onSubmit, onCancel, submitting, error }) {
+  const isCommercial = property.propertyType === "COMMERCIAL";
+  const occupantWord = isCommercial ? "Shop Owner" : "Tenant";
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -51,6 +54,10 @@ function RegisterTenantForm({ property, rooms, onSubmit, onCancel, submitting, e
     dateCommencement: "",
     dateExpiration: "",
     dateRenewal: "",
+    businessName: "",
+    cacNumber: "",
+    nextOfKinName: "",
+    nextOfKinPhone: "",
   });
   const [inviteLink, setInviteLink] = useState("");
 
@@ -64,6 +71,9 @@ function RegisterTenantForm({ property, rooms, onSubmit, onCancel, submitting, e
       dateCommencement: form.dateCommencement || undefined,
       dateExpiration: form.dateExpiration || undefined,
       dateRenewal: form.dateRenewal || undefined,
+      ...(isCommercial
+        ? { businessName: form.businessName || undefined, cacNumber: form.cacNumber || undefined }
+        : { nextOfKinName: form.nextOfKinName || undefined, nextOfKinPhone: form.nextOfKinPhone || undefined }),
     };
     const result = await onSubmit(payload);
     if (result?.inviteToken) {
@@ -74,7 +84,7 @@ function RegisterTenantForm({ property, rooms, onSubmit, onCancel, submitting, e
   if (inviteLink) {
     return (
       <div>
-        <p className="text-sm text-ink-600">Tenant registered. Share this activation link with them to set up their login:</p>
+        <p className="text-sm text-ink-600">{occupantWord} registered. Share this activation link with them to set up their login:</p>
         <div className="mt-3 break-all rounded-lg bg-ink-50 px-3.5 py-2.5 text-xs font-mono text-ink-700">{inviteLink}</div>
         <button
           onClick={() => navigator.clipboard?.writeText(inviteLink)}
@@ -92,21 +102,28 @@ function RegisterTenantForm({ property, rooms, onSubmit, onCancel, submitting, e
   return (
     <form onSubmit={handleSubmit}>
       <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-brand-600">Registering into {property.name}</p>
-      <FormField label="Tenant's Name" name="name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
+      <FormField label={`${occupantWord}'s Name`} name="name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
       <FormField label="Email Address" name="email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} required />
       <FormField label="Phone Number" name="phone" type="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
 
+      {isCommercial && (
+        <>
+          <FormField label="Business Name" name="businessName" value={form.businessName} onChange={(e) => setForm((f) => ({ ...f, businessName: e.target.value }))} />
+          <FormField label="CAC Registration Number (optional)" name="cacNumber" value={form.cacNumber} onChange={(e) => setForm((f) => ({ ...f, cacNumber: e.target.value }))} />
+        </>
+      )}
+
       <div className="mb-4">
-        <label className="mb-1.5 block text-sm font-semibold text-ink-700">Room / Apartment</label>
+        <label className="mb-1.5 block text-sm font-semibold text-ink-700">{isCommercial ? "Unit / Shop" : "Room / Apartment"}</label>
         <select
           value={form.roomId}
           onChange={(e) => setForm((f) => ({ ...f, roomId: e.target.value }))}
           className="w-full rounded-xl border border-ink-200 bg-ink-50 px-3.5 py-3 text-sm text-ink-900 outline-none focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-100"
         >
-          <option value="">No vacant rooms available</option>
+          <option value="">No vacant {isCommercial ? "units" : "rooms"} available</option>
           {rooms.map((r) => (
             <option key={r.id} value={r.id}>
-              Room {r.roomNumber} — {formatNaira(r.rentAmount)}/yr
+              {isCommercial ? "Unit" : "Room"} {r.roomNumber} — {formatNaira(r.rentAmount)}/{FREQUENCY_SHORT[r.rentFrequency || "YEARLY"]}
             </option>
           ))}
         </select>
@@ -118,13 +135,20 @@ function RegisterTenantForm({ property, rooms, onSubmit, onCancel, submitting, e
         <FormField label="Renewal Date" name="dateRenewal" type="date" value={form.dateRenewal} onChange={(e) => setForm((f) => ({ ...f, dateRenewal: e.target.value }))} />
       </div>
 
+      {!isCommercial && (
+        <div className="grid grid-cols-1 gap-x-3 sm:grid-cols-2">
+          <FormField label="Next of Kin Name (optional)" name="nextOfKinName" value={form.nextOfKinName} onChange={(e) => setForm((f) => ({ ...f, nextOfKinName: e.target.value }))} />
+          <FormField label="Next of Kin Phone (optional)" name="nextOfKinPhone" value={form.nextOfKinPhone} onChange={(e) => setForm((f) => ({ ...f, nextOfKinPhone: e.target.value }))} />
+        </div>
+      )}
+
       {error && <p className="mb-4 text-sm font-medium text-red-500">{error}</p>}
       <div className="flex gap-3">
         <button type="button" onClick={onCancel} className="flex-1 rounded-xl border border-ink-200 py-2.5 text-sm font-bold text-ink-600 transition hover:bg-ink-50">
           Cancel
         </button>
         <button type="submit" disabled={submitting} className="flex-1 rounded-xl bg-brand-500 py-2.5 text-sm font-bold text-white transition hover:bg-brand-600 disabled:opacity-60">
-          {submitting ? "Registering…" : "Register Tenant"}
+          {submitting ? "Registering…" : `Register ${occupantWord}`}
         </button>
       </div>
     </form>
@@ -172,7 +196,11 @@ export default function PropertyTenants() {
     setPage(1);
   }, [search, statusFilter, leaseFilter, paymentFilter, sortBy]);
 
-  const monthlyIncome = property ? property.rooms.reduce((sum, r) => sum + Number(r.rentAmount), 0) / 12 : 0;
+  const monthlyIncome = property ? (property.stats?.annualRentExpected || 0) / 12 : 0;
+  const isCommercial = property?.propertyType === "COMMERCIAL";
+  const occupantWord = isCommercial ? "Shop Owner" : "Tenant";
+  const occupantWordPlural = isCommercial ? "Shop Owners" : "Tenants";
+  const roomWordPlural = isCommercial ? "Units" : "Rooms";
 
   const filteredSorted = useMemo(() => {
     if (!tenants) return [];
@@ -247,7 +275,7 @@ export default function PropertyTenants() {
   }
 
   return (
-    <DashboardShell navItems={STAFF_NAV} title={property ? `Tenants — ${property.name}` : "Tenants"} subtitle="Tenants for this property only">
+    <DashboardShell navItems={STAFF_NAV} title={property ? `${occupantWordPlural} — ${property.name}` : "Tenants"} subtitle={`${occupantWordPlural} for this property only`}>
       <nav className="mb-4 flex items-center gap-1.5 text-xs font-semibold text-ink-400">
         <Link to="/dashboard/staff" className="hover:text-brand-600">Dashboard</Link>
         <FaChevronRight size={9} />
@@ -255,7 +283,7 @@ export default function PropertyTenants() {
         <FaChevronRight size={9} />
         <Link to={`/dashboard/staff/properties/${propertyId}`} className="hover:text-brand-600">{property?.name || "…"}</Link>
         <FaChevronRight size={9} />
-        <span className="text-ink-700">Tenants</span>
+        <span className="text-ink-700">{occupantWordPlural}</span>
       </nav>
 
       {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</div>}
@@ -273,10 +301,10 @@ export default function PropertyTenants() {
               </div>
               <p className="text-xs text-ink-400">{property.address}</p>
               <div className="mt-1.5 flex flex-wrap gap-3 text-xs font-semibold text-ink-500">
-                <span className="flex items-center gap-1"><FaDoorOpen size={11} /> {property.stats.totalRooms} Rooms</span>
+                <span className="flex items-center gap-1"><FaDoorOpen size={11} /> {property.stats.totalRooms} {roomWordPlural}</span>
                 <span className="flex items-center gap-1"><FaBuilding size={11} /> {property.stats.occupiedRooms} Occupied</span>
                 <span className="flex items-center gap-1"><FaDoorOpen size={11} /> {property.stats.vacantRooms} Vacant</span>
-                <span className="flex items-center gap-1"><FaUsers size={11} /> {property.stats.tenantCount} Tenants</span>
+                <span className="flex items-center gap-1"><FaUsers size={11} /> {property.stats.tenantCount} {occupantWordPlural}</span>
               </div>
             </div>
           </div>
@@ -304,7 +332,7 @@ export default function PropertyTenants() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search tenants…"
+              placeholder={`Search ${occupantWordPlural.toLowerCase()}…`}
               className="w-full rounded-xl border border-ink-200 bg-white py-2.5 pl-10 pr-3.5 text-sm text-ink-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             />
           </div>
@@ -337,12 +365,12 @@ export default function PropertyTenants() {
           onClick={() => setShowModal(true)}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white shadow-card transition hover:bg-brand-600"
         >
-          <FaPlus size={12} /> Add Tenant
+          <FaPlus size={12} /> Add {occupantWord}
         </button>
       </div>
 
       {tenants && filteredSorted.length === 0 && (
-        <EmptyState icon={FaUsers} title="No tenants match" body="Try a different search or filter, or register a new tenant into this property." />
+        <EmptyState icon={FaUsers} title={`No ${occupantWordPlural.toLowerCase()} match`} body={`Try a different search or filter, or register a new ${occupantWord.toLowerCase()} into this property.`} />
       )}
 
       {pageItems.length > 0 && (
@@ -350,8 +378,8 @@ export default function PropertyTenants() {
           <table className="w-full min-w-[880px] text-left text-sm">
             <thead className="border-b border-ink-100 bg-ink-50 text-xs font-bold uppercase tracking-wide text-ink-500">
               <tr>
-                <th className="px-4 py-3">Tenant</th>
-                <th className="px-4 py-3">Room Number</th>
+                <th className="px-4 py-3">{occupantWord}</th>
+                <th className="px-4 py-3">{isCommercial ? "Unit Number" : "Room Number"}</th>
                 <th className="px-4 py-3">Phone Number</th>
                 <th className="px-4 py-3">Payment Status</th>
                 <th className="px-4 py-3">Outstanding</th>

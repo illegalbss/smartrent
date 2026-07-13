@@ -3,6 +3,7 @@ const prisma = require("../config/prisma");
 const storage = require("../services/storage");
 const { summarizePayments } = require("../services/financeSummary");
 const { computeTenantPaymentStatus } = require("../services/tenantPaymentStatus");
+const { annualizedRent } = require("../services/rentFrequency");
 
 function withPhotoFlag(property) {
   const { photoUrl, ...rest } = property;
@@ -13,7 +14,7 @@ async function listProperties(req, res, next) {
   try {
     const properties = await prisma.property.findMany({
       where: { landlordId: req.landlordId },
-      include: { rooms: { select: { id: true, status: true, rentAmount: true } } },
+      include: { rooms: { select: { id: true, status: true, rentAmount: true, rentFrequency: true } } },
       orderBy: { createdAt: "desc" },
     });
 
@@ -44,7 +45,7 @@ async function listProperties(req, res, next) {
     const data = properties.map((p) => {
       const totalRooms = p.rooms.length;
       const occupiedRooms = p.rooms.filter((r) => r.status === "OCCUPIED").length;
-      const annualRent = p.rooms.reduce((sum, r) => sum + Number(r.rentAmount), 0);
+      const annualRent = p.rooms.reduce((sum, r) => sum + annualizedRent(r.rentAmount, r.rentFrequency), 0);
       const { rooms, ...rest } = p;
       return withPhotoFlag({
         ...rest,
@@ -71,6 +72,7 @@ async function buildPropertyStats(property) {
   const roomIds = property.rooms.map((r) => r.id);
   const totalRooms = property.rooms.length;
   const occupiedRooms = property.rooms.filter((r) => r.status === "OCCUPIED").length;
+  const annualRentExpected = property.rooms.reduce((sum, r) => sum + annualizedRent(r.rentAmount, r.rentFrequency), 0);
 
   const [payments, tenantsWithRooms] = await Promise.all([
     roomIds.length
@@ -148,6 +150,7 @@ async function buildPropertyStats(property) {
     vacantRooms: totalRooms - occupiedRooms,
     occupancyRate: totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 1000) / 10 : 0,
     tenantCount: tenantsWithRooms.length,
+    annualRentExpected: Math.round(annualRentExpected * 100) / 100,
     openComplaints,
     pendingMaintenance,
     ...summarizePayments(payments),
@@ -189,9 +192,15 @@ async function createProperty(req, res, next) {
     if (!errors.isEmpty()) {
       return res.status(400).json({ success: false, error: errors.array()[0].msg });
     }
-    const { name, address, ownershipType } = req.body;
+    const { name, address, ownershipType, propertyType } = req.body;
     const property = await prisma.property.create({
-      data: { name, address, ownershipType: ownershipType || "PERSONAL", landlordId: req.auth.id },
+      data: {
+        name,
+        address,
+        ownershipType: ownershipType || "PERSONAL",
+        propertyType: propertyType || "RESIDENTIAL",
+        landlordId: req.auth.id,
+      },
     });
     res.status(201).json({ success: true, data: withPhotoFlag(property) });
   } catch (err) {

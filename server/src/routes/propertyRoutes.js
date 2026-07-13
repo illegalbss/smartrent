@@ -27,6 +27,7 @@ router.post(
     body("name").trim().notEmpty().withMessage("Property name is required."),
     body("address").trim().notEmpty().withMessage("Address is required."),
     body("ownershipType").optional().isIn(["ORGANIZATION", "PERSONAL"]).withMessage("Invalid ownership type."),
+    body("propertyType").optional().isIn(["RESIDENTIAL", "COMMERCIAL"]).withMessage("Invalid property type."),
   ],
   createProperty
 );

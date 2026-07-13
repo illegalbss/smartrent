@@ -81,12 +81,15 @@ async function finalizePayment(reference) {
     return { ok: false, status: 402, error: `Payment was not successful (status: ${txn.status}).` };
   }
 
-  const tenant = await prisma.tenant.findUnique({ where: { id: txnRecord.tenantId } });
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: txnRecord.tenantId },
+    include: { room: { select: { rentFrequency: true } } },
+  });
   if (!tenant) return { ok: false, status: 404, error: "Tenant not found." };
 
   const amount = txn.amount / 100;
   const datePaid = txn.paid_at ? new Date(txn.paid_at) : new Date();
-  const coverage = resolveCoverage({ datePaid });
+  const coverage = resolveCoverage({ datePaid, rentFrequency: tenant.room?.rentFrequency });
   const payment = await prisma.payment.create({
     data: {
       landlordId: txnRecord.landlordId,
