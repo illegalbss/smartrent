@@ -9,7 +9,7 @@ const {
   listAuditLog,
   listMonthlyLedger,
 } = require("../controllers/paymentController");
-const { downloadOwnStatement, downloadTenantStatement } = require("../controllers/statementController");
+const { downloadOwnStatement, downloadTenantStatement, downloadReceipt, downloadInvoice } = require("../controllers/statementController");
 
 const router = Router();
 const staff = requireStaff();
@@ -44,5 +44,7 @@ router.get("/payments/ledger", staff, listMonthlyLedger);
 
 router.get("/tenant/payments/statement", requireAuth("tenant"), downloadOwnStatement);
 router.get("/tenants/:tenantId/payments/statement", staff, downloadTenantStatement);
+router.get("/tenants/:tenantId/payments/:paymentId/receipt", staff, downloadReceipt);
+router.get("/tenants/:tenantId/invoice", staff, downloadInvoice);
 
 module.exports = router;

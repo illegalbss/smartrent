@@ -1,5 +1,6 @@
 const PDFKit = require("pdfkit");
 const prisma = require("../config/prisma");
+const { computeTenantPaymentStatus } = require("../services/tenantPaymentStatus");
 
 function formatDate(date) {
   if (!date) return "—";
@@ -118,4 +119,133 @@ async function downloadTenantStatement(req, res, next) {
   }
 }
 
-module.exports = { downloadOwnStatement, downloadTenantStatement };
+function renderReceiptBuffer(tenant, payment, landlordName) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFKit({ margin: 50, size: "A4" });
+    const chunks = [];
+    doc.on("data", (chunk) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    doc.fontSize(20).text("PAYMENT RECEIPT", { align: "center" });
+    doc.moveDown(0.3);
+    doc.fontSize(10).fillColor("#666").text(`Receipt #${payment.id.slice(-8).toUpperCase()}`, { align: "center" });
+    doc.fillColor("#000").moveDown(1.5);
+
+    doc.fontSize(11);
+    doc.text(`Tenant: ${tenant.name}`);
+    doc.text(`Landlord: ${landlordName}`);
+    if (tenant.room) {
+      doc.text(`Property: ${tenant.room.property.name}`);
+      doc.text(`Room: ${tenant.room.roomNumber}`);
+    }
+    doc.moveDown(1);
+
+    doc.fontSize(14).text(`Amount Paid: ${formatNaira(payment.amount)}`);
+    doc.moveDown(0.5);
+    doc.fontSize(11);
+    doc.text(`Date Paid: ${formatDate(payment.datePaid)}`);
+    if (payment.coverageStart) doc.text(`Coverage Period: ${formatDate(payment.coverageStart)} – ${formatDate(payment.coverageEnd)}`);
+    doc.text(`Payment Method: ${payment.source === "PAYSTACK" ? "Paystack (Online)" : "Manual"}`);
+    doc.text(`Status: ${payment.status}`);
+    if (payment.notes) doc.text(`Notes: ${payment.notes}`);
+
+    doc.moveDown(2);
+    doc.fontSize(9).fillColor("#666").text(`Generated ${formatDate(new Date())}`, { align: "center" });
+
+    doc.end();
+  });
+}
+
+// Staff downloads a receipt for one specific payment.
+async function downloadReceipt(req, res, next) {
+  try {
+    const payment = await prisma.payment.findFirst({
+      where: { id: req.params.paymentId, tenantId: req.params.tenantId, landlordId: req.landlordId },
+    });
+    if (!payment) return res.status(404).json({ success: false, error: "Payment not found." });
+
+    const tenant = await prisma.tenant.findFirst({
+      where: { id: req.params.tenantId, landlordId: req.landlordId },
+      include: { room: { include: { property: { select: { name: true } } } } },
+    });
+    if (!tenant) return res.status(404).json({ success: false, error: "Tenant not found." });
+
+    const landlord = await prisma.landlord.findUnique({ where: { id: req.landlordId }, select: { name: true } });
+    const buffer = await renderReceiptBuffer(tenant, payment, landlord?.name || "");
+
+    res.set("Content-Type", "application/pdf");
+    res.set("Content-Disposition", `attachment; filename="Receipt - ${tenant.name} - ${formatDate(payment.datePaid)}.pdf"`);
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+function renderInvoiceBuffer(tenant, paymentStatus, landlordName) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFKit({ margin: 50, size: "A4" });
+    const chunks = [];
+    doc.on("data", (chunk) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    doc.fontSize(20).text("RENT INVOICE", { align: "center" });
+    doc.moveDown(0.3);
+    doc.fontSize(10).fillColor("#666").text(`Issued ${formatDate(new Date())}`, { align: "center" });
+    doc.fillColor("#000").moveDown(1.5);
+
+    doc.fontSize(11);
+    doc.text(`Billed To: ${tenant.name}`);
+    doc.text(`Landlord: ${landlordName}`);
+    doc.text(`Property: ${tenant.room.property.name}`);
+    doc.text(`Room: ${tenant.room.roomNumber}`);
+    doc.moveDown(1);
+
+    doc.fontSize(14).text(`Amount Due: ${formatNaira(paymentStatus.outstanding)}`);
+    doc.moveDown(0.5);
+    doc.fontSize(11);
+    doc.text(`Annual Rent: ${formatNaira(tenant.room.rentAmount)}`);
+    doc.text(`Due Date: ${formatDate(paymentStatus.nextDueDate)}`);
+    if (paymentStatus.isOverdue) {
+      doc.fillColor("#c0392b").text(`Status: OVERDUE by ${Math.abs(paymentStatus.daysUntilDue)} day(s)`);
+      doc.fillColor("#000");
+    }
+
+    doc.moveDown(2);
+    doc.fontSize(9).fillColor("#666").text("Please make payment at your earliest convenience.", { align: "center" });
+
+    doc.end();
+  });
+}
+
+// Staff downloads an invoice for the tenant's current outstanding balance.
+async function downloadInvoice(req, res, next) {
+  try {
+    const tenant = await prisma.tenant.findFirst({
+      where: { id: req.params.tenantId, landlordId: req.landlordId },
+      include: {
+        room: { include: { property: { select: { name: true } } } },
+        payments: { orderBy: { datePaid: "desc" }, take: 1 },
+      },
+    });
+    if (!tenant) return res.status(404).json({ success: false, error: "Tenant not found." });
+    if (!tenant.room) return res.status(409).json({ success: false, error: "Tenant is not assigned to a room." });
+
+    const paymentStatus = computeTenantPaymentStatus({
+      room: tenant.room,
+      latestPayment: tenant.payments[0] || null,
+      fallbackDueDate: tenant.dateCommencement,
+    });
+    const landlord = await prisma.landlord.findUnique({ where: { id: req.landlordId }, select: { name: true } });
+    const buffer = await renderInvoiceBuffer(tenant, paymentStatus, landlord?.name || "");
+
+    res.set("Content-Type", "application/pdf");
+    res.set("Content-Disposition", `attachment; filename="Invoice - ${tenant.name}.pdf"`);
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { downloadOwnStatement, downloadTenantStatement, downloadReceipt, downloadInvoice };

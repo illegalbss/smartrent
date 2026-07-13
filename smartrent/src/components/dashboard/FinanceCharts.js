@@ -1,4 +1,4 @@
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Card, formatNaira } from "./UiKit";
 
 const STATUS_LABEL = { PAID: "Paid", PARTIAL: "Partial", OWING: "Owing" };
@@ -27,6 +27,29 @@ export function IncomeOverviewChart({ series, className = "lg:col-span-2" }) {
             <Tooltip formatter={(value) => formatNaira(value)} labelStyle={{ color: "#1f2329" }} />
             <Area type="monotone" dataKey="total" stroke="#26b568" strokeWidth={2.5} fill="url(#incomeFill)" name="Collected" />
           </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </Card>
+  );
+}
+
+export function MonthlyCollectionsChart({ series, className = "lg:col-span-2" }) {
+  return (
+    <Card title="Monthly Collections" className={className}>
+      <div className="h-56">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={series} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+            <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#8792a2" }} axisLine={false} tickLine={false} />
+            <YAxis
+              tick={{ fontSize: 11, fill: "#8792a2" }}
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={(v) => (v >= 1000 ? `₦${(v / 1000).toFixed(0)}k` : `₦${v}`)}
+              width={50}
+            />
+            <Tooltip formatter={(value) => formatNaira(value)} labelStyle={{ color: "#1f2329" }} />
+            <Bar dataKey="total" fill="#26b568" name="Collected" radius={[6, 6, 0, 0]} />
+          </BarChart>
         </ResponsiveContainer>
       </div>
     </Card>

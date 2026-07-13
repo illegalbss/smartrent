@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, downloadFile } from "./client";
 
 export const paymentsApi = {
   listForTenant: (tenantId) => api.get(`/tenants/${tenantId}/payments`),
@@ -10,4 +10,7 @@ export const paymentsApi = {
   own: () => api.get("/tenant/payments"),
   paystackInitialize: () => api.post("/tenant/payments/paystack/initialize", {}),
   paystackVerify: (reference) => api.post("/tenant/payments/paystack/verify", { reference }),
+  downloadStatement: (tenantId, filename) => downloadFile(`/tenants/${tenantId}/payments/statement`, filename),
+  downloadReceipt: (tenantId, paymentId, filename) => downloadFile(`/tenants/${tenantId}/payments/${paymentId}/receipt`, filename),
+  downloadInvoice: (tenantId, filename) => downloadFile(`/tenants/${tenantId}/invoice`, filename),
 };

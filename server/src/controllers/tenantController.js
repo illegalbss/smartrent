@@ -3,6 +3,7 @@ const { validationResult } = require("express-validator");
 const prisma = require("../config/prisma");
 const storage = require("../services/storage");
 const { computeTenantPaymentStatus } = require("../services/tenantPaymentStatus");
+const { summarizePayments } = require("../services/financeSummary");
 
 function sanitize(tenant) {
   const { passwordHash, inviteToken, photoUrl, ...rest } = tenant;
@@ -47,7 +48,7 @@ async function registerTenant(req, res, next) {
       return res.status(400).json({ success: false, error: errors.array()[0].msg });
     }
 
-    const { name, email, phone, roomId, dateCommencement, dateExpiration, dateRenewal } = req.body;
+    const { name, email, phone, roomId, dateCommencement, dateExpiration, dateRenewal, securityDeposit } = req.body;
 
     const existing = await prisma.tenant.findUnique({ where: { email: email.toLowerCase() } });
     if (existing) {
@@ -74,6 +75,7 @@ async function registerTenant(req, res, next) {
         dateCommencement: dateCommencement ? new Date(dateCommencement) : null,
         dateExpiration: dateExpiration ? new Date(dateExpiration) : null,
         dateRenewal: dateRenewal ? new Date(dateRenewal) : null,
+        securityDeposit: securityDeposit || null,
         inviteToken,
         registeredById: req.staffId,
         registeredByRole: req.staffRole,
@@ -148,7 +150,15 @@ async function getTenant(req, res, next) {
       },
     });
     if (!tenant) return res.status(404).json({ success: false, error: "Tenant not found." });
-    res.json({ success: true, data: sanitize(tenant) });
+
+    const paymentStatus = computeTenantPaymentStatus({
+      room: tenant.room,
+      latestPayment: tenant.payments[0] || null,
+      fallbackDueDate: tenant.dateCommencement,
+    });
+    const finance = summarizePayments(tenant.payments);
+
+    res.json({ success: true, data: { ...sanitize(tenant), paymentStatus, finance } });
   } catch (err) {
     next(err);
   }
@@ -164,7 +174,7 @@ async function updateTenant(req, res, next) {
     const tenant = await prisma.tenant.findFirst({ where: { id: req.params.tenantId, landlordId: req.landlordId } });
     if (!tenant) return res.status(404).json({ success: false, error: "Tenant not found." });
 
-    const { name, phone, dateCommencement, dateExpiration, dateRenewal, roomId } = req.body;
+    const { name, phone, dateCommencement, dateExpiration, dateRenewal, roomId, securityDeposit } = req.body;
 
     // Handle room reassignment: free the old room, occupy the new one.
     if (roomId !== undefined && roomId !== tenant.roomId) {
@@ -190,6 +200,7 @@ async function updateTenant(req, res, next) {
         ...(dateExpiration !== undefined && { dateExpiration: dateExpiration ? new Date(dateExpiration) : null }),
         ...(dateRenewal !== undefined && { dateRenewal: dateRenewal ? new Date(dateRenewal) : null }),
         ...(roomId !== undefined && { roomId: roomId || null }),
+        ...(securityDeposit !== undefined && { securityDeposit: securityDeposit || null }),
       },
     });
     res.json({ success: true, data: sanitize(updated) });

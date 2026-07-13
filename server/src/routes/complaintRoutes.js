@@ -5,6 +5,8 @@ const {
   createComplaint,
   listOwnComplaints,
   listComplaintsForStaff,
+  createComplaintForTenant,
+  updateComplaintTriage,
   respondToComplaint,
 } = require("../controllers/complaintController");
 
@@ -19,6 +21,13 @@ router.post(
 router.get("/tenant/complaints", requireAuth("tenant"), listOwnComplaints);
 
 router.get("/complaints", requireStaff(), listComplaintsForStaff);
+router.post(
+  "/tenants/:tenantId/complaints",
+  requireStaff(),
+  [body("message").trim().notEmpty().withMessage("A message is required.")],
+  createComplaintForTenant
+);
+router.put("/complaints/:complaintId", requireStaff(), updateComplaintTriage);
 router.put(
   "/complaints/:complaintId/respond",
   requireStaff(),
