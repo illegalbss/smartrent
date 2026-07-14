@@ -31,34 +31,34 @@ function PropertySelectorCard({ property }) {
         <p className="mt-1 truncate text-xs text-ink-400">{property.address}</p>
 
         <div className="mt-4 grid grid-cols-4 gap-2 text-center">
-          <div>
+          <div className="min-w-0">
             <div className="text-sm font-extrabold text-ink-900">{property.totalRooms}</div>
-            <div className="text-[10px] font-semibold uppercase text-ink-400">Rooms</div>
+            <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Rooms</div>
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="text-sm font-extrabold text-green-600">{property.occupiedRooms}</div>
-            <div className="text-[10px] font-semibold uppercase text-ink-400">Occupied</div>
+            <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Occupied</div>
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="text-sm font-extrabold text-amber-600">{property.vacantRooms}</div>
-            <div className="text-[10px] font-semibold uppercase text-ink-400">Vacant</div>
+            <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Vacant</div>
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="text-sm font-extrabold text-ink-900">{property.tenantCount}</div>
-            <div className="text-[10px] font-semibold uppercase text-ink-400">Tenants</div>
+            <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Tenants</div>
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-between border-t border-ink-100 pt-3.5 text-sm">
-          <div>
-            <div className="text-[10px] font-semibold uppercase text-ink-400">Monthly Income</div>
-            <div className="font-bold text-green-600" title={formatNaira(property.monthlyIncome)}>
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-ink-100 pt-3.5 text-sm">
+          <div className="min-w-0">
+            <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Income Collected</div>
+            <div className="truncate font-bold text-green-600" title={formatNaira(property.monthlyIncome)}>
               {formatNairaCompact(property.monthlyIncome)}
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-[10px] font-semibold uppercase text-ink-400">Outstanding</div>
-            <div className={`font-bold ${property.outstanding > 0 ? "text-red-600" : "text-green-600"}`} title={formatNaira(property.outstanding)}>
+          <div className="min-w-0 text-right">
+            <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Outstanding</div>
+            <div className={`truncate font-bold ${property.outstanding > 0 ? "text-red-600" : "text-green-600"}`} title={formatNaira(property.outstanding)}>
               {formatNairaCompact(property.outstanding)}
             </div>
           </div>

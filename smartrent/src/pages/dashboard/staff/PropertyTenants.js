@@ -196,7 +196,7 @@ export default function PropertyTenants() {
     setPage(1);
   }, [search, statusFilter, leaseFilter, paymentFilter, sortBy]);
 
-  const monthlyIncome = property ? (property.stats?.annualRentExpected || 0) / 12 : 0;
+  const monthlyIncome = property?.stats?.collectedThisMonth || 0;
   const isCommercial = property?.propertyType === "COMMERCIAL";
   const occupantWord = isCommercial ? "Shop Owner" : "Tenant";
   const occupantWordPlural = isCommercial ? "Shop Owners" : "Tenants";
@@ -310,13 +310,13 @@ export default function PropertyTenants() {
           </div>
 
           <div className="flex items-center gap-6">
-            <div>
-              <div className="text-[10px] font-semibold uppercase text-ink-400">Monthly Income</div>
-              <div className="text-base font-extrabold text-green-600" title={formatNaira(monthlyIncome)}>{formatNairaCompact(monthlyIncome)}</div>
+            <div className="min-w-0">
+              <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Collected This Month</div>
+              <div className="truncate text-base font-extrabold text-green-600" title={formatNaira(monthlyIncome)}>{formatNairaCompact(monthlyIncome)}</div>
             </div>
-            <div>
-              <div className="text-[10px] font-semibold uppercase text-ink-400">Outstanding</div>
-              <div className="text-base font-extrabold text-red-600" title={formatNaira(property.stats.totalOwing)}>{formatNairaCompact(property.stats.totalOwing)}</div>
+            <div className="min-w-0">
+              <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Outstanding</div>
+              <div className="truncate text-base font-extrabold text-red-600" title={formatNaira(property.stats.totalOwing)}>{formatNairaCompact(property.stats.totalOwing)}</div>
             </div>
             <button onClick={handleExport} className="inline-flex items-center gap-2 rounded-xl bg-ink-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-ink-800">
               <FaFileExport size={12} /> Export

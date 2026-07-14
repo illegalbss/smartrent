@@ -21,16 +21,27 @@ async function listProperties(req, res, next) {
     const allRoomIds = properties.flatMap((p) => p.rooms.map((r) => r.id));
     const roomToProperty = new Map(properties.flatMap((p) => p.rooms.map((r) => [r.id, p.id])));
 
-    const tenantsWithRooms = allRoomIds.length
-      ? await prisma.tenant.findMany({
-          where: { roomId: { in: allRoomIds } },
-          select: {
-            roomId: true,
-            room: { select: { rentAmount: true } },
-            payments: { orderBy: { datePaid: "desc" }, take: 1, select: { status: true, amount: true } },
-          },
-        })
-      : [];
+    const [tenantsWithRooms, allPayments] = await Promise.all([
+      allRoomIds.length
+        ? prisma.tenant.findMany({
+            where: { roomId: { in: allRoomIds } },
+            select: {
+              roomId: true,
+              room: { select: { rentAmount: true } },
+              payments: { orderBy: { datePaid: "desc" }, take: 1, select: { status: true, amount: true } },
+            },
+          })
+        : Promise.resolve([]),
+      // Actual payments, so "income" reflects real money collected — never a
+      // projection from potential rent, which would show a number even for
+      // a vacant room with zero tenants.
+      allRoomIds.length
+        ? prisma.payment.findMany({
+            where: { roomId: { in: allRoomIds } },
+            select: { roomId: true, amount: true, status: true, datePaid: true, source: true },
+          })
+        : Promise.resolve([]),
+    ]);
 
     const tenantCountByProperty = new Map();
     const outstandingByProperty = new Map();
@@ -42,10 +53,18 @@ async function listProperties(req, res, next) {
       outstandingByProperty.set(propertyId, (outstandingByProperty.get(propertyId) || 0) + outstanding);
     }
 
+    const paymentsByProperty = new Map();
+    for (const payment of allPayments) {
+      const propertyId = roomToProperty.get(payment.roomId);
+      if (!propertyId) continue;
+      if (!paymentsByProperty.has(propertyId)) paymentsByProperty.set(propertyId, []);
+      paymentsByProperty.get(propertyId).push(payment);
+    }
+
     const data = properties.map((p) => {
       const totalRooms = p.rooms.length;
       const occupiedRooms = p.rooms.filter((r) => r.status === "OCCUPIED").length;
-      const annualRent = p.rooms.reduce((sum, r) => sum + annualizedRent(r.rentAmount, r.rentFrequency), 0);
+      const { collectedThisMonth } = summarizePayments(paymentsByProperty.get(p.id) || []);
       const { rooms, ...rest } = p;
       return withPhotoFlag({
         ...rest,
@@ -54,7 +73,7 @@ async function listProperties(req, res, next) {
         vacantRooms: totalRooms - occupiedRooms,
         occupancyRate: totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 1000) / 10 : 0,
         tenantCount: tenantCountByProperty.get(p.id) || 0,
-        monthlyIncome: Math.round((annualRent / 12) * 100) / 100,
+        monthlyIncome: collectedThisMonth,
         outstanding: Math.round((outstandingByProperty.get(p.id) || 0) * 100) / 100,
       });
     });
