@@ -5,10 +5,15 @@ import AuthLayout from "../components/AuthLayout";
 import FormField from "../components/FormField";
 import { useAuth } from "../context/AuthContext";
 
+const ACCOUNT_TYPES = [
+  { value: "INDIVIDUAL", label: "Individual", sub: "I own/manage properties personally" },
+  { value: "ORGANIZATION", label: "Organization", sub: "I'm registering on behalf of a company/estate" },
+];
+
 export default function Register() {
   const { registerLandlord } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ fullName: "", email: "", phone: "", password: "", confirm: "" });
+  const [form, setForm] = useState({ fullName: "", email: "", phone: "", password: "", confirm: "", accountType: "INDIVIDUAL" });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -35,6 +40,7 @@ export default function Register() {
       email: form.email.trim(),
       phone: form.phone.trim(),
       password: form.password,
+      accountType: form.accountType,
     });
     setSubmitting(false);
 
@@ -51,6 +57,26 @@ export default function Register() {
       <p className="mt-1.5 text-sm text-ink-500">Join RentaFlow today</p>
 
       <form className="mt-6" onSubmit={handleSubmit}>
+        <div className="mb-4">
+          <label className="mb-1.5 block text-sm font-semibold text-ink-700">Registering as</label>
+          <div className="grid grid-cols-2 gap-2">
+            {ACCOUNT_TYPES.map((t) => (
+              <button
+                type="button"
+                key={t.value}
+                onClick={() => setForm((f) => ({ ...f, accountType: t.value }))}
+                className={`rounded-xl border px-3 py-2.5 text-left transition ${
+                  form.accountType === t.value ? "border-brand-500 bg-brand-50" : "border-ink-200 hover:border-brand-300"
+                }`}
+              >
+                <span className={`block text-sm font-bold ${form.accountType === t.value ? "text-brand-700" : "text-ink-800"}`}>{t.label}</span>
+                <span className="block text-xs text-ink-400">{t.sub}</span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-xs text-ink-400">Used later when you set up payouts — you can change this anytime.</p>
+        </div>
+
         <FormField
           label="Full Name"
           name="fullName"

@@ -75,9 +75,9 @@ export function AuthProvider({ children }) {
     }
   }
 
-  async function registerLandlord({ fullName, email, phone, password }) {
+  async function registerLandlord({ fullName, email, phone, password, accountType }) {
     try {
-      const { data } = await api.post("/auth/landlord/signup", { name: fullName, email, phone, password });
+      const { data } = await api.post("/auth/landlord/signup", { name: fullName, email, phone, password, accountType });
       setToken(data.token);
       const profile = normalize(data.landlord, "landlord");
       setUser(profile);

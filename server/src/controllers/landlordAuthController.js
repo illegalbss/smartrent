@@ -15,7 +15,7 @@ async function signup(req, res, next) {
       return res.status(400).json({ success: false, error: errors.array()[0].msg });
     }
 
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, accountType } = req.body;
     const existing = await prisma.landlord.findUnique({ where: { email: email.toLowerCase() } });
     if (existing) {
       return res.status(409).json({ success: false, error: "An account with this email already exists." });
@@ -23,7 +23,16 @@ async function signup(req, res, next) {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const landlord = await prisma.landlord.create({
-      data: { name, email: email.toLowerCase(), passwordHash, phone },
+      data: {
+        name,
+        email: email.toLowerCase(),
+        passwordHash,
+        phone,
+        // Individual vs. Organization — carried into Payout Setup later so the
+        // landlord doesn't have to answer the same question twice; they can
+        // still change it there before actually creating the Paystack subaccount.
+        ...(accountType && ["INDIVIDUAL", "ORGANIZATION"].includes(accountType) && { accountType }),
+      },
     });
 
     const token = signToken({ id: landlord.id, role: "landlord" });
