@@ -422,7 +422,7 @@ export default function AdminDashboard() {
       <div className="w-56 shrink-0 bg-white p-5">
         <div className="mb-6 flex items-center gap-2 px-1">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600 text-white"><FaCrown size={14} /></span>
-          <span className="text-sm font-extrabold text-ink-900">SmartRent Admin</span>
+          <span className="text-sm font-extrabold text-ink-900">RentaFlow Admin</span>
         </div>
         <nav className="space-y-1">
           {SECTIONS.map((s) => (

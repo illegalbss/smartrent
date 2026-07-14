@@ -33,7 +33,7 @@ export default function AdminLogin() {
             <FaCrown size={17} />
           </span>
           <div>
-            <div className="text-base font-extrabold text-ink-900">SmartRent Admin</div>
+            <div className="text-base font-extrabold text-ink-900">RentaFlow Admin</div>
             <div className="text-xs text-ink-400">Platform owner access only</div>
           </div>
         </div>

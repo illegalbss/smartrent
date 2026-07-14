@@ -48,7 +48,7 @@ export default function Register() {
   return (
     <AuthLayout tagline="Create a landlord account to manage properties and track rent payments.">
       <h1 className="text-2xl font-extrabold text-ink-900">Create Your Landlord Account</h1>
-      <p className="mt-1.5 text-sm text-ink-500">Join SmartRent today</p>
+      <p className="mt-1.5 text-sm text-ink-500">Join RentaFlow today</p>
 
       <form className="mt-6" onSubmit={handleSubmit}>
         <FormField

@@ -178,7 +178,7 @@ export default function Settings({ navItems }) {
             />
             <Toggle
               label="Push Notifications"
-              description="Browser notifications while using SmartRent"
+              description="Browser notifications while using RentaFlow"
               checked={prefs.push}
               onChange={(v) => savePrefs({ ...prefs, push: v })}
             />

@@ -10,7 +10,7 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    console.error("SmartRent crashed:", error, info);
+    console.error("RentaFlow crashed:", error, info);
   }
 
   render() {

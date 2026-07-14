@@ -89,8 +89,8 @@ export default function Landing() {
               Manage Properties, Tenants &amp; Rent Records Easily
             </h1>
             <p className="mt-5 max-w-lg text-base leading-relaxed text-ink-500">
-              SmartRent helps landlords, secretaries, and tenants track properties, rooms, payments, and
-              tenancy documents — all in one secure, easy-to-use place.
+              RentaFlow helps landlords, secretaries, and tenants/shop owners track properties, units, payments,
+              and tenancy documents — all in one secure, easy-to-use place.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link
@@ -110,7 +110,7 @@ export default function Landing() {
           <div className="overflow-hidden rounded-2xl shadow-soft">
             <img
               src={heroBuilding}
-              alt="A modern rental property managed with SmartRent"
+              alt="A modern rental property managed with RentaFlow"
               className="h-full w-full object-cover"
             />
           </div>
@@ -157,7 +157,7 @@ export default function Landing() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-extrabold text-ink-900">Loved by landlords and tenants</h2>
-            <p className="mt-3 text-ink-500">Real feedback from people using SmartRent every day.</p>
+            <p className="mt-3 text-ink-500">Real feedback from people using RentaFlow every day.</p>
           </div>
           <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
             {TESTIMONIALS.map((t) => (
@@ -190,7 +190,7 @@ export default function Landing() {
               Ready to simplify your rental management?
             </h2>
             <p className="mt-2 max-w-md text-sm text-brand-50">
-              Create your free SmartRent account today — no credit card required.
+              Create your free RentaFlow account today — no credit card required.
             </p>
           </div>
           <Link

@@ -8,8 +8,8 @@ export default function Footer() {
         <div>
           <Logo light />
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-ink-400">
-            SmartRent helps landlords, secretaries, and tenants track properties, payments, and tenancy
-            documents — all in one place.
+            RentaFlow helps landlords, secretaries, and tenants/shop owners track properties, payments, and
+            tenancy documents — all in one place.
           </p>
           <div className="mt-5 flex gap-3">
             {[FaFacebookF, FaTwitter, FaInstagram, FaLinkedinIn].map((Icon, i) => (
@@ -45,14 +45,14 @@ export default function Footer() {
         <div>
           <h4 className="mb-4 text-sm font-bold uppercase tracking-wide text-white">Contact</h4>
           <ul className="space-y-3 text-sm text-ink-400">
-            <li className="flex items-center gap-2"><FaEnvelope size={13} /> support@smartrent.com</li>
-            <li className="flex items-center gap-2"><FaPhoneAlt size={13} /> +1 (234) 567-890</li>
-            <li className="flex items-center gap-2"><FaMapMarkerAlt size={13} /> 12 Park Street, New York</li>
+            <li className="flex items-center gap-2"><FaEnvelope size={13} /> support@rentaflow.com</li>
+            <li className="flex items-center gap-2"><FaPhoneAlt size={13} /> +234 800 123 4567</li>
+            <li className="flex items-center gap-2"><FaMapMarkerAlt size={13} /> Lekki Phase 1, Lagos, Nigeria</li>
           </ul>
         </div>
       </div>
       <div className="border-t border-ink-800 py-5 text-center text-xs text-ink-500">
-        © {new Date().getFullYear()} SmartRent Management System. All rights reserved.
+        © {new Date().getFullYear()} RentaFlow. All rights reserved.
       </div>
     </footer>
   );
