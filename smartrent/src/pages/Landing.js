@@ -11,6 +11,9 @@ import {
 import PublicNavbar from "../components/PublicNavbar";
 import Footer from "../components/Footer";
 import heroBuilding from "../assets/hero-building.jpg";
+import galleryTownhouse from "../assets/gallery-townhouse.jpg";
+import galleryConstruction from "../assets/gallery-construction.jpg";
+import loginBuilding from "../assets/login-building.jpg";
 
 const FEATURES = [
   {
@@ -50,6 +53,12 @@ const STATS = [
   { value: "₦", label: "Naira-Native" },
   { value: "100%", label: "Audit-Logged Payments" },
   { value: "24/7", label: "Access Anywhere" },
+];
+
+const GALLERY = [
+  { src: galleryTownhouse, alt: "A modern multi-unit townhouse development", className: "sm:row-span-2" },
+  { src: loginBuilding, alt: "A residential apartment building" },
+  { src: galleryConstruction, alt: "A high-rise residential building" },
 ];
 
 const ABOUT_POINTS = [
@@ -144,6 +153,20 @@ export default function Landing() {
               </div>
               <h3 className="mt-5 text-lg font-bold text-ink-900">{f.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-ink-500">{f.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-3xl font-extrabold text-ink-900">Properties managed on RentaFlow</h2>
+          <p className="mt-3 text-ink-500">From single townhouses to multi-unit apartment buildings.</p>
+        </div>
+        <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:grid-rows-2">
+          {GALLERY.map((g) => (
+            <div key={g.src} className={`overflow-hidden rounded-2xl shadow-card ${g.className || ""}`}>
+              <img src={g.src} alt={g.alt} className="h-full max-h-96 w-full object-cover sm:max-h-none" />
             </div>
           ))}
         </div>
