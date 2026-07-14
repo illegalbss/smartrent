@@ -28,6 +28,11 @@ function computeTenantPaymentStatus({ room, latestPayment, fallbackDueDate, now 
     isOverdue = daysUntilDue < 0;
   }
 
+  // The last recorded payment can itself be fully PAID and still leave the
+  // tenant owing — once its coverage period has lapsed with no new payment
+  // on record, at least one full rent cycle is now due.
+  if (isOverdue) outstanding = Math.max(outstanding, rentAmount);
+
   return {
     outstanding: Math.round(outstanding * 100) / 100,
     nextDueDate,

@@ -27,8 +27,9 @@ async function listProperties(req, res, next) {
             where: { roomId: { in: allRoomIds } },
             select: {
               roomId: true,
+              dateCommencement: true,
               room: { select: { rentAmount: true } },
-              payments: { orderBy: { datePaid: "desc" }, take: 1, select: { status: true, amount: true } },
+              payments: { orderBy: { datePaid: "desc" }, take: 1, select: { status: true, amount: true, coverageEnd: true } },
             },
           })
         : Promise.resolve([]),
@@ -49,7 +50,11 @@ async function listProperties(req, res, next) {
       const propertyId = roomToProperty.get(t.roomId);
       if (!propertyId) continue;
       tenantCountByProperty.set(propertyId, (tenantCountByProperty.get(propertyId) || 0) + 1);
-      const { outstanding } = computeTenantPaymentStatus({ room: t.room, latestPayment: t.payments[0] || null });
+      const { outstanding } = computeTenantPaymentStatus({
+        room: t.room,
+        latestPayment: t.payments[0] || null,
+        fallbackDueDate: t.dateCommencement,
+      });
       outstandingByProperty.set(propertyId, (outstandingByProperty.get(propertyId) || 0) + outstanding);
     }
 
