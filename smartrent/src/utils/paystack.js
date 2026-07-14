@@ -20,7 +20,22 @@ function loadPaystackScript() {
 // which the caller must still verify server-side before treating it as paid.
 // `channels` narrows the popup to a specific payment method (card/bank_transfer/ussd) —
 // Paystack itself handles all of these within the one integration.
-export async function payWithPaystack({ publicKey, email, amount, reference, channels, onSuccess, onClose }) {
+// `subaccount`/`transactionCharge`/`bearer` route the landlord's share to their
+// own Paystack subaccount, keeping RentaFlow's 1% (capped) fee. `plan` opts
+// the tenant into recurring billing matching their room's rent frequency.
+export async function payWithPaystack({
+  publicKey,
+  email,
+  amount,
+  reference,
+  channels,
+  subaccount,
+  transactionCharge,
+  bearer,
+  plan,
+  onSuccess,
+  onClose,
+}) {
   await loadPaystackScript();
 
   const handler = window.PaystackPop.setup({
@@ -30,6 +45,10 @@ export async function payWithPaystack({ publicKey, email, amount, reference, cha
     ref: reference,
     currency: "NGN",
     ...(channels && { channels }),
+    ...(subaccount && { subaccount }),
+    ...(transactionCharge && { transaction_charge: transactionCharge }),
+    ...(bearer && { bearer }),
+    ...(plan && { plan }),
     callback: (response) => onSuccess(response.reference),
     onClose,
   });

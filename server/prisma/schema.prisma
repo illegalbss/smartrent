@@ -97,6 +97,20 @@ enum SubscriptionStatus {
   CANCELED
 }
 
+// How a landlord is paid out — determines which fields are required when
+// calling Paystack's Create Subaccount API.
+enum LandlordAccountType {
+  INDIVIDUAL
+  ORGANIZATION
+}
+
+enum TenantSubscriptionStatus {
+  ACTIVE
+  ATTENTION
+  DISABLED
+  CANCELED
+}
+
 enum BillingTransactionStatus {
   SUCCESS
   FAILED
@@ -162,8 +176,20 @@ model Landlord {
   nextBillingDate          DateTime?          @map("next_billing_date")
   paystackCustomerCode     String?            @map("paystack_customer_code")
   paystackSubscriptionCode String?            @map("paystack_subscription_code")
-  createdAt                DateTime           @default(now()) @map("created_at")
-  updatedAt                DateTime           @updatedAt @map("updated_at")
+
+  // Payout setup (Paystack Subaccounts) — how rent collected online reaches
+  // this landlord's own bank account. Distinct from paystackCustomerCode
+  // above, which is for the landlord's own RentaFlow subscription billing.
+  accountType            LandlordAccountType? @map("account_type")
+  payoutBusinessName     String?              @map("payout_business_name")
+  payoutBankCode         String?              @map("payout_bank_code")
+  payoutAccountNumber    String?              @map("payout_account_number")
+  payoutRcNumber         String?              @map("payout_rc_number")
+  paystackSubaccountCode String?              @map("paystack_subaccount_code")
+  payoutVerified         Boolean              @default(false) @map("payout_verified")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   plan                 SubscriptionPlan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
   properties           Property[]
@@ -277,31 +303,53 @@ model Tenant {
   maintenanceRequests  MaintenanceRequest[]
   notices              Notice[]
   paystackTransactions PaystackTransaction[]
+  subscription         TenantSubscription?
 
   @@index([landlordId])
   @@index([roomId])
   @@map("tenants")
 }
 
+// A tenant/shop-owner's recurring rent subscription (Paystack), created once
+// they opt into auto-pay matching their room's rentFrequency. next_charge_date
+// and status are kept in sync via Paystack's subscription webhooks.
+model TenantSubscription {
+  id               String                   @id @default(cuid())
+  tenantId         String                   @unique @map("tenant_id")
+  subscriptionCode String                   @unique @map("subscription_code")
+  emailToken       String?                  @map("email_token")
+  nextChargeDate   DateTime?                @map("next_charge_date")
+  status           TenantSubscriptionStatus @default(ACTIVE)
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  updatedAt        DateTime                 @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_subscriptions")
+}
+
 // Editable and deletable, unlike an append-only ledger — every edit/delete
 // writes a PaymentAuditLog entry so mistakes stay traceable.
 model Payment {
-  id                String        @id @default(cuid())
-  landlordId        String        @map("landlord_id")
-  tenantId          String        @map("tenant_id")
-  roomId            String        @map("room_id")
-  amount            Decimal       @db.Decimal(12, 2)
-  datePaid          DateTime      @map("date_paid")
-  coverageStart     DateTime?     @map("coverage_start")
-  coverageEnd       DateTime?     @map("coverage_end")
-  status            PaymentStatus @default(PAID)
-  source            PaymentSource @default(MANUAL)
-  paystackReference String?       @unique @map("paystack_reference")
-  notes             String?
-  createdById       String        @map("created_by_id")
-  createdByRole     ActorRole     @map("created_by_role")
-  createdAt         DateTime      @default(now()) @map("created_at")
-  updatedAt         DateTime      @updatedAt @map("updated_at")
+  id                 String        @id @default(cuid())
+  landlordId         String        @map("landlord_id")
+  tenantId           String        @map("tenant_id")
+  roomId             String        @map("room_id")
+  amount             Decimal       @db.Decimal(12, 2)
+  datePaid           DateTime      @map("date_paid")
+  coverageStart      DateTime?     @map("coverage_start")
+  coverageEnd        DateTime?     @map("coverage_end")
+  status             PaymentStatus @default(PAID)
+  source             PaymentSource @default(MANUAL)
+  paystackReference  String?       @unique @map("paystack_reference")
+  // The 1% (capped at ₦25,000) RentaFlow kept from this payment, if any —
+  // null for manual payments. Powers the Super Admin revenue view.
+  platformFeeCharged Decimal?      @map("platform_fee_charged") @db.Decimal(12, 2)
+  notes              String?
+  createdById        String        @map("created_by_id")
+  createdByRole      ActorRole     @map("created_by_role")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
 
   landlord  Landlord          @relation(fields: [landlordId], references: [id], onDelete: Cascade)
   tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)

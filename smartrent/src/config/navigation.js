@@ -1,4 +1,4 @@
-import { FaTh, FaBuilding, FaUsers, FaComments, FaUserTie, FaCog, FaMoneyBillWave, FaTools, FaBullhorn, FaBook } from "react-icons/fa";
+import { FaTh, FaBuilding, FaUsers, FaComments, FaUserTie, FaCog, FaMoneyBillWave, FaTools, FaBullhorn, FaBook, FaWallet } from "react-icons/fa";
 
 // Shared by Landlord and Secretary — both operate within the landlord's portfolio.
 export const STAFF_NAV = [
@@ -11,6 +11,7 @@ export const STAFF_NAV = [
   { to: "/dashboard/staff/house-rules", label: "House Rules", icon: FaBook },
   { to: "/dashboard/staff/complaints", label: "Complaints", icon: FaComments },
   { to: "/dashboard/staff/secretaries", label: "Secretaries", icon: FaUserTie, landlordOnly: true },
+  { to: "/dashboard/staff/payout-setup", label: "Payout Setup", icon: FaWallet, landlordOnly: true },
   { to: "/dashboard/staff/settings", label: "Settings", icon: FaCog },
 ];
 

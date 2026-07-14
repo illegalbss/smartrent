@@ -1,11 +1,29 @@
 const crypto = require("crypto");
 const prisma = require("../config/prisma");
 const { resolveCoverage } = require("../services/paymentDates");
+const { paystackRequest } = require("../services/paystackClient");
+const { calculatePlatformFee, calculatePlatformFeeKobo, FEE_CAP } = require("../services/platformFee");
 
 const PAYSTACK_BASE = "https://api.paystack.co";
+const PAYSTACK_INTERVAL = { MONTHLY: "monthly", QUARTERLY: "quarterly", YEARLY: "annually" };
 
 function toJsonSafe(value) {
   return value ? JSON.parse(JSON.stringify(value)) : undefined;
+}
+
+// One Paystack Plan per (amount, frequency) pairing — created on demand the
+// first time a tenant opts into recurring billing at that rent/frequency.
+// NOTE: unverified against a live Paystack account — built against Paystack's
+// documented Plan API shape (see server/README or the session notes on why).
+async function getOrCreatePlanCode(amountNaira, rentFrequency) {
+  const interval = PAYSTACK_INTERVAL[rentFrequency] || "annually";
+  const result = await paystackRequest("POST", "/plan", {
+    name: `RentaFlow Rent — ${interval} — NGN${amountNaira}`,
+    amount: Math.round(amountNaira * 100),
+    interval,
+  });
+  if (!result.ok) return null;
+  return result.data.plan_code;
 }
 
 // Tenant starts an online rent payment. We compute the amount from the
@@ -24,8 +42,21 @@ async function initializePayment(req, res, next) {
       return res.status(409).json({ success: false, error: "You are not currently assigned to a room." });
     }
 
+    const landlord = await prisma.landlord.findUnique({
+      where: { id: tenant.landlordId },
+      select: { paystackSubaccountCode: true },
+    });
+    if (!landlord?.paystackSubaccountCode) {
+      return res.status(409).json({
+        success: false,
+        error: "Online rent collection isn't set up for this property yet. Contact your landlord.",
+        code: "PAYOUT_NOT_CONFIGURED",
+      });
+    }
+
     const reference = `sr_${crypto.randomBytes(12).toString("hex")}`;
-    const amountKobo = Math.round(Number(tenant.room.rentAmount) * 100);
+    const rentAmountNaira = Number(tenant.room.rentAmount);
+    const amountKobo = Math.round(rentAmountNaira * 100);
 
     await prisma.paystackTransaction.create({
       data: {
@@ -37,6 +68,21 @@ async function initializePayment(req, res, next) {
       },
     });
 
+    // Paystack's subaccount percentage_charge (set to 1% at subaccount
+    // creation) applies automatically. Above the ₦25,000 cap, override with
+    // a fixed transaction_charge instead — Paystack has no built-in cap.
+    const percentageFeeNaira = rentAmountNaira * 0.01;
+    const splitParams = { subaccount: landlord.paystackSubaccountCode };
+    if (percentageFeeNaira > FEE_CAP) {
+      splitParams.transactionCharge = calculatePlatformFeeKobo(rentAmountNaira);
+      splitParams.bearer = "subaccount";
+    }
+
+    let planCode;
+    if (req.body?.enableRecurring) {
+      planCode = await getOrCreatePlanCode(rentAmountNaira, tenant.room.rentFrequency);
+    }
+
     res.json({
       success: true,
       data: {
@@ -44,6 +90,8 @@ async function initializePayment(req, res, next) {
         amount: amountKobo,
         email: tenant.email,
         publicKey: process.env.PAYSTACK_PUBLIC_KEY,
+        ...splitParams,
+        ...(planCode && { plan: planCode }),
       },
     });
   } catch (err) {
@@ -102,6 +150,8 @@ async function finalizePayment(reference) {
       status: "PAID",
       source: "PAYSTACK",
       paystackReference: reference,
+      // Actually charged by construction — see initializePayment's splitParams.
+      platformFeeCharged: calculatePlatformFee(amount),
       notes: "Paid online via Paystack",
       createdById: txnRecord.tenantId,
       createdByRole: "TENANT",
@@ -122,6 +172,24 @@ async function finalizePayment(reference) {
 
   await prisma.paystackTransaction.update({ where: { id: txnRecord.id }, data: { consumedAt: new Date() } });
 
+  // A recurring-billing transaction attaches subscription details to the
+  // charge itself, in addition to the separate subscription.create webhook
+  // handled below — capture it here too in case that event is delayed/missed.
+  if (txn.plan_object?.plan_code || txn.plan) {
+    await prisma.tenantSubscription
+      .upsert({
+        where: { tenantId: tenant.id },
+        create: {
+          tenantId: tenant.id,
+          subscriptionCode: txn.subscription_code || `pending_${txn.id}`,
+          nextChargeDate: null,
+          status: "ACTIVE",
+        },
+        update: { status: "ACTIVE" },
+      })
+      .catch(() => {});
+  }
+
   return { ok: true, payment };
 }
 
@@ -140,11 +208,50 @@ async function verifyPayment(req, res, next) {
   }
 }
 
+async function handleSubscriptionEvent(event) {
+  const data = event.data;
+  if (!data) return;
+
+  if (event.event === "subscription.create") {
+    const tenant = await prisma.tenant.findUnique({ where: { email: data.customer?.email?.toLowerCase() } });
+    if (!tenant) return;
+    await prisma.tenantSubscription.upsert({
+      where: { tenantId: tenant.id },
+      create: {
+        tenantId: tenant.id,
+        subscriptionCode: data.subscription_code,
+        emailToken: data.email_token || null,
+        nextChargeDate: data.next_payment_date ? new Date(data.next_payment_date) : null,
+        status: "ACTIVE",
+      },
+      update: {
+        subscriptionCode: data.subscription_code,
+        emailToken: data.email_token || null,
+        nextChargeDate: data.next_payment_date ? new Date(data.next_payment_date) : null,
+        status: "ACTIVE",
+      },
+    });
+  }
+
+  if (event.event === "subscription.disable" || event.event === "subscription.not_renew") {
+    const sub = await prisma.tenantSubscription.findUnique({ where: { subscriptionCode: data.subscription_code } });
+    if (sub) await prisma.tenantSubscription.update({ where: { id: sub.id }, data: { status: "DISABLED" } });
+  }
+
+  if (event.event === "invoice.payment_failed") {
+    const subCode = data.subscription?.subscription_code;
+    if (!subCode) return;
+    const sub = await prisma.tenantSubscription.findUnique({ where: { subscriptionCode: subCode } });
+    if (sub) await prisma.tenantSubscription.update({ where: { id: sub.id }, data: { status: "ATTENTION" } });
+  }
+}
+
 // Server-triggered path: Paystack calls this directly whenever a transaction
 // completes, independent of whether the tenant's browser is still open.
 // This is what makes delayed methods (bank transfer, USSD) reliable — a
 // tenant can close the tab right after getting their transfer details and
-// the payment still lands here once they actually pay.
+// the payment still lands here once they actually pay. Also handles
+// recurring-subscription lifecycle events (create/disable/failed charge).
 async function handleWebhook(req, res) {
   try {
     const signature = req.headers["x-paystack-signature"];
@@ -161,6 +268,8 @@ async function handleWebhook(req, res) {
     if (event.event === "charge.success" && event.data?.reference) {
       const result = await finalizePayment(event.data.reference);
       if (!result.ok) console.error("Webhook payment finalize failed:", result.error);
+    } else if (event.event?.startsWith("subscription.") || event.event === "invoice.payment_failed") {
+      await handleSubscriptionEvent(event).catch((err) => console.error("Webhook subscription handling failed:", err));
     }
     res.sendStatus(200);
   } catch (err) {

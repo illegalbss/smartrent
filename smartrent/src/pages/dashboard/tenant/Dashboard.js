@@ -35,6 +35,7 @@ export default function TenantDashboard() {
   const [paying, setPaying] = useState(false);
   const [payMessage, setPayMessage] = useState("");
   const [showMethodModal, setShowMethodModal] = useState(false);
+  const [enableRecurring, setEnableRecurring] = useState(false);
 
   function loadProfile() {
     api
@@ -51,13 +52,17 @@ export default function TenantDashboard() {
     setPayMessage("");
     setPaying(true);
     try {
-      const { data } = await paymentsApi.paystackInitialize();
+      const { data } = await paymentsApi.paystackInitialize(enableRecurring);
       await payWithPaystack({
         publicKey: data.publicKey,
         email: data.email,
         amount: data.amount,
         reference: data.reference,
         channels,
+        subaccount: data.subaccount,
+        transactionCharge: data.transactionCharge,
+        bearer: data.bearer,
+        plan: data.plan,
         onSuccess: async (reference) => {
           try {
             await paymentsApi.paystackVerify(reference);
@@ -202,8 +207,22 @@ export default function TenantDashboard() {
             </button>
           ))}
         </div>
-        <p className="mt-4 text-xs text-ink-400">
+        <label className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-lg bg-ink-50 px-3.5 py-3">
+          <input
+            type="checkbox"
+            checked={enableRecurring}
+            onChange={(e) => setEnableRecurring(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500"
+          />
+          <span className="text-xs text-ink-600">
+            <span className="font-semibold text-ink-800">Auto-pay my rent going forward</span> — automatically charge
+            this payment method again each {FREQUENCY_LABEL[profile?.room?.rentFrequency || "YEARLY"]}, matching your
+            lease.
+          </span>
+        </label>
+        <p className="mt-3 text-xs text-ink-400">
           All methods are processed securely through Paystack — you'll complete payment in the window that opens next.
+          RentaFlow charges 1% per online payment (capped at ₦25,000), paid by your landlord — never added to your rent.
         </p>
       </Modal>
     </DashboardShell>

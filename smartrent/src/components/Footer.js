@@ -1,27 +1,15 @@
-import { FaFacebookF, FaTwitter, FaInstagram, FaLinkedinIn, FaEnvelope, FaPhoneAlt, FaMapMarkerAlt } from "react-icons/fa";
 import Logo from "./Logo";
 
 export default function Footer() {
   return (
     <footer id="contact" className="border-t border-ink-100 bg-ink-900 text-ink-200">
-      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 py-14 sm:px-6 md:grid-cols-4 lg:px-8">
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 py-14 sm:px-6 md:grid-cols-3 lg:px-8">
         <div>
           <Logo light />
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-ink-400">
             RentaFlow helps landlords, secretaries, and tenants/shop owners track properties, payments, and
             tenancy documents — all in one place.
           </p>
-          <div className="mt-5 flex gap-3">
-            {[FaFacebookF, FaTwitter, FaInstagram, FaLinkedinIn].map((Icon, i) => (
-              <a
-                key={i}
-                href="#top"
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-ink-800 text-ink-300 transition hover:bg-brand-500 hover:text-white"
-              >
-                <Icon size={14} />
-              </a>
-            ))}
-          </div>
         </div>
 
         <div>
@@ -37,17 +25,7 @@ export default function Footer() {
           <h4 className="mb-4 text-sm font-bold uppercase tracking-wide text-white">Company</h4>
           <ul className="space-y-2.5 text-sm text-ink-400">
             <li><a href="/#about" className="hover:text-brand-400">About Us</a></li>
-            <li><a href="/#contact" className="hover:text-brand-400">Contact</a></li>
             <li><a href="/register" className="hover:text-brand-400">Get Started</a></li>
-          </ul>
-        </div>
-
-        <div>
-          <h4 className="mb-4 text-sm font-bold uppercase tracking-wide text-white">Contact</h4>
-          <ul className="space-y-3 text-sm text-ink-400">
-            <li className="flex items-center gap-2"><FaEnvelope size={13} /> support@rentaflow.com</li>
-            <li className="flex items-center gap-2"><FaPhoneAlt size={13} /> +234 800 123 4567</li>
-            <li className="flex items-center gap-2"><FaMapMarkerAlt size={13} /> Lekki Phase 1, Lagos, Nigeria</li>
           </ul>
         </div>
       </div>

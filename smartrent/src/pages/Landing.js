@@ -6,7 +6,6 @@ import {
   FaChartLine,
   FaBell,
   FaShieldAlt,
-  FaStar,
   FaArrowRight,
 } from "react-icons/fa";
 import PublicNavbar from "../components/PublicNavbar";
@@ -26,8 +25,8 @@ const FEATURES = [
   },
   {
     icon: FaUsers,
-    title: "Three Account Types",
-    body: "Landlord, Secretary/Accountant, and Tenant accounts each see exactly what they need — nothing more.",
+    title: "Tenants & Shop Owners",
+    body: "Residential tenants and commercial shop owners are tracked with the fields that matter to each — next of kin vs. business/CAC details.",
   },
   {
     icon: FaChartLine,
@@ -53,24 +52,21 @@ const STATS = [
   { value: "24/7", label: "Access Anywhere" },
 ];
 
-const TESTIMONIALS = [
+const ABOUT_POINTS = [
   {
-    quote:
-      "I manage properties I own personally and ones owned by the family estate — finally I can see both at a glance.",
-    name: "Michael Adebayo",
-    role: "Landlord, 8 units",
+    icon: FaUsers,
+    title: "Four roles, one system",
+    body: "Landlord, Secretary/Accountant, Tenant/Shop Owner, and a platform Super Admin — each sees exactly what's relevant to them, nothing more.",
   },
   {
-    quote:
-      "Registering a new tenant used to mean a stack of paper. Now it's one form and the agreement generates itself.",
-    name: "Grace Okonkwo",
-    role: "Secretary/Accountant",
+    icon: FaMoneyBillWave,
+    title: "Manual or online payments",
+    body: "Record cash, transfer, or POS payments by hand, or let tenants pay online through Paystack — either way, one payment history.",
   },
   {
-    quote:
-      "I can see exactly what I've paid and when my lease is up for renewal, without calling the office.",
-    name: "David Chukwu",
-    role: "Tenant",
+    icon: FaShieldAlt,
+    title: "Documents stay protected",
+    body: "Tenancy agreements, IDs, and referee forms are visible only to Secretary and Landlord accounts — never exposed to a tenant login, even via a direct link.",
   },
 ];
 
@@ -156,27 +152,20 @@ export default function Landing() {
       <section id="about" className="bg-ink-50 py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-extrabold text-ink-900">Loved by landlords and tenants</h2>
-            <p className="mt-3 text-ink-500">Real feedback from people using RentaFlow every day.</p>
+            <h2 className="text-3xl font-extrabold text-ink-900">Built for how Nigerian rentals actually work</h2>
+            <p className="mt-3 text-ink-500">
+              One place for landlords, secretaries, tenants, and shop owners — instead of spreadsheets, paper
+              agreements, and WhatsApp reminders.
+            </p>
           </div>
           <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
-            {TESTIMONIALS.map((t) => (
-              <div key={t.name} className="rounded-2xl bg-white p-7 shadow-card">
-                <div className="flex gap-1 text-amber-400">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <FaStar key={i} size={13} />
-                  ))}
+            {ABOUT_POINTS.map((p) => (
+              <div key={p.title} className="rounded-2xl bg-white p-7 shadow-card">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                  <p.icon size={18} />
                 </div>
-                <p className="mt-4 text-sm leading-relaxed text-ink-600">&ldquo;{t.quote}&rdquo;</p>
-                <div className="mt-5 flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">
-                    {t.name.charAt(0)}
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-ink-900">{t.name}</div>
-                    <div className="text-xs text-ink-400">{t.role}</div>
-                  </div>
-                </div>
+                <h3 className="mt-4 text-base font-bold text-ink-900">{p.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-600">{p.body}</p>
               </div>
             ))}
           </div>

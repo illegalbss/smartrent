@@ -18,6 +18,7 @@ import StaffNotices from "./pages/dashboard/staff/Notices";
 import StaffHouseRules from "./pages/dashboard/staff/HouseRules";
 import Complaints from "./pages/dashboard/staff/Complaints";
 import Secretaries from "./pages/dashboard/staff/Secretaries";
+import PayoutSetup from "./pages/dashboard/staff/PayoutSetup";
 import TenantDashboard from "./pages/dashboard/tenant/Dashboard";
 import TenantPayments from "./pages/dashboard/tenant/Payments";
 import TenantMaintenance from "./pages/dashboard/tenant/Maintenance";
@@ -135,6 +136,14 @@ export default function App() {
           element={
             <ProtectedRoute role={STAFF_ROLES}>
               <Secretaries />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/staff/payout-setup"
+          element={
+            <ProtectedRoute role="landlord">
+              <PayoutSetup />
             </ProtectedRoute>
           }
         />

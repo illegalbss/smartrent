@@ -16,6 +16,7 @@ const houseRulesRoutes = require("./houseRulesRoutes");
 const superAdminAuthRoutes = require("./superAdminAuthRoutes");
 const superAdminRoutes = require("./superAdminRoutes");
 const subscriptionPlanRoutes = require("./subscriptionPlanRoutes");
+const payoutRoutes = require("./payoutRoutes");
 
 const router = Router();
 
@@ -37,5 +38,6 @@ router.use(houseRulesRoutes);
 router.use(superAdminAuthRoutes);
 router.use(superAdminRoutes);
 router.use(subscriptionPlanRoutes);
+router.use(payoutRoutes);
 
 module.exports = router;

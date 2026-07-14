@@ -7,6 +7,8 @@ import {
   FaCommentDots,
   FaArrowRight,
   FaDoorOpen,
+  FaCheckCircle,
+  FaExclamationTriangle,
 } from "react-icons/fa";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
 import { StatCard, Badge, EmptyState } from "../../../components/dashboard/UiKit";
@@ -16,6 +18,7 @@ import AuthImage from "../../../components/AuthImage";
 import { STAFF_NAV } from "../../../config/navigation";
 import { dashboardApi } from "../../../api/dashboard";
 import { propertiesApi } from "../../../api/properties";
+import { payoutApi } from "../../../api/payout";
 import { useAuth } from "../../../context/AuthContext";
 
 const OWNERSHIP_FILTERS = [
@@ -94,6 +97,7 @@ export default function StaffDashboard() {
   const [properties, setProperties] = useState(null);
   const [ownershipFilter, setOwnershipFilter] = useState("ALL");
   const [error, setError] = useState("");
+  const [payoutStatus, setPayoutStatus] = useState(null);
 
   useEffect(() => {
     Promise.all([dashboardApi.get(), propertiesApi.list()])
@@ -102,7 +106,10 @@ export default function StaffDashboard() {
         setProperties(propsRes.data);
       })
       .catch((err) => setError(err.message));
-  }, []);
+    if (user.role === "landlord") {
+      payoutApi.status().then((res) => setPayoutStatus(res.data)).catch(() => {});
+    }
+  }, [user.role]);
 
   const filteredProperties = properties?.filter((p) => ownershipFilter === "ALL" || p.ownershipType === ownershipFilter) || [];
 
@@ -113,6 +120,26 @@ export default function StaffDashboard() {
       subtitle="Each property tracked on its own — nothing combined"
     >
       {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</div>}
+
+      {payoutStatus && !payoutStatus.payoutVerified && (
+        <Link
+          to="/dashboard/staff/payout-setup"
+          className="mb-4 flex items-center gap-3 rounded-xl bg-amber-50 px-4 py-3.5 text-sm font-medium text-amber-700 transition hover:bg-amber-100"
+        >
+          <FaExclamationTriangle size={16} className="shrink-0" />
+          <span className="flex-1">
+            <span className="font-bold">⚠️ Payout setup required</span> — online rent collection is blocked until you add
+            your bank details.
+          </span>
+          <FaArrowRight size={12} className="shrink-0" />
+        </Link>
+      )}
+      {payoutStatus?.payoutVerified && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl bg-green-50 px-4 py-3.5 text-sm font-medium text-green-700">
+          <FaCheckCircle size={16} className="shrink-0" />
+          <span>✅ Payouts verified — tenants and shop owners can pay rent online.</span>
+        </div>
+      )}
 
       {!data && !error && <EmptyState title="Loading dashboard…" />}
 
