@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
 import Logo from "./Logo";
-import loginBuilding from "../assets/login-building.jpg";
+import loginBuilding from "../assets/gallery-construction.jpg";
 
 export default function AuthLayout({ children, tagline }) {
   return (

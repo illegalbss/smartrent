@@ -58,7 +58,7 @@ const STATS = [
 const GALLERY = [
   { src: galleryTownhouse, alt: "A modern multi-unit townhouse development", className: "sm:row-span-2" },
   { src: loginBuilding, alt: "A residential apartment building" },
-  { src: galleryConstruction, alt: "A high-rise residential building" },
+  { src: heroBuilding, alt: "A standalone rental house" },
 ];
 
 const ABOUT_POINTS = [
@@ -114,7 +114,7 @@ export default function Landing() {
           </div>
           <div className="overflow-hidden rounded-2xl shadow-soft">
             <img
-              src={heroBuilding}
+              src={galleryConstruction}
               alt="A modern rental property managed with RentaFlow"
               className="h-full w-full object-cover"
             />
