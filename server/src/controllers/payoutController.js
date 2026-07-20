@@ -49,8 +49,9 @@ async function resolveAccount(req, res, next) {
 }
 
 // Sets up (or replaces) how this landlord gets paid — creates a Paystack
-// Subaccount with a fixed 1% percentage_charge, so RentaFlow's fee-cap
-// override (see services/platformFee.js) only needs to kick in above ₦25k.
+// Subaccount with percentage_charge: 0, since RentaFlow doesn't take a cut
+// of rent payments under the flat-annual-license model. This still routes
+// settlement directly to the landlord's own bank account, just with no fee.
 async function setupPayout(req, res, next) {
   try {
     const { accountType, businessName, bankCode, accountNumber, rcNumber } = req.body;
@@ -68,7 +69,7 @@ async function setupPayout(req, res, next) {
       business_name: businessName,
       settlement_bank: bankCode,
       account_number: accountNumber,
-      percentage_charge: 1,
+      percentage_charge: 0,
     });
     if (!result.ok) return res.status(result.status).json({ success: false, error: result.error || "Could not set up payouts with Paystack." });
 

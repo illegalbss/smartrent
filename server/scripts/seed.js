@@ -7,10 +7,12 @@ require("dotenv").config();
 const bcrypt = require("bcryptjs");
 const prisma = require("../src/config/prisma");
 
+// Flat annual license fees (10% off the equivalent 12-month rate, as an
+// incentive to pay upfront) — not monthly, and not a per-transaction cut.
 const PLANS = [
-  { name: "Starter", roomLimit: 20, price: 8000 },
-  { name: "Growth", roomLimit: 75, price: 18000 },
-  { name: "Pro", roomLimit: null, price: 35000 },
+  { name: "Starter", roomLimit: 20, price: 86000 },
+  { name: "Growth", roomLimit: 75, price: 195000 },
+  { name: "Pro", roomLimit: null, price: 378000 },
 ];
 
 async function seedPlans() {

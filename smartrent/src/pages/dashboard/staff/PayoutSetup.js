@@ -101,8 +101,8 @@ export default function PayoutSetup() {
 
       <Card title="Payout Details">
         <p className="mb-4 text-xs text-ink-500">
-          RentaFlow charges 1% per online rent payment collected, capped at ₦25,000 — this is never added to your
-          tenants' rent. The remaining amount is routed directly to the account below.
+          100% of rent collected online is routed directly to the account below — RentaFlow takes no cut of your
+          rent payments.
         </p>
 
         <div className="mb-4">

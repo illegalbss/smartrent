@@ -60,8 +60,6 @@ export default function TenantDashboard() {
         reference: data.reference,
         channels,
         subaccount: data.subaccount,
-        transactionCharge: data.transactionCharge,
-        bearer: data.bearer,
         plan: data.plan,
         onSuccess: async (reference) => {
           try {
@@ -222,7 +220,6 @@ export default function TenantDashboard() {
         </label>
         <p className="mt-3 text-xs text-ink-400">
           All methods are processed securely through Paystack — you'll complete payment in the window that opens next.
-          RentaFlow charges 1% per online payment (capped at ₦25,000), paid by your landlord — never added to your rent.
         </p>
       </Modal>
     </DashboardShell>

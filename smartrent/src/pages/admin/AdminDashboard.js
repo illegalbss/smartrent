@@ -67,7 +67,7 @@ function LandlordForm({ initial, plans, onSubmit, onCancel, submitting, error })
         >
           <option value="">No plan assigned</option>
           {plans.map((p) => (
-            <option key={p.id} value={p.id}>{p.name} — {formatNaira(p.price)}/mo</option>
+            <option key={p.id} value={p.id}>{p.name} — {formatNaira(p.price)}/year</option>
           ))}
         </select>
       </div>
@@ -93,6 +93,19 @@ function LandlordForm({ initial, plans, onSubmit, onCancel, submitting, error })
             value={form.nextBillingDate}
             onChange={(e) => setForm((f) => ({ ...f, nextBillingDate: e.target.value }))}
           />
+          <label className="mb-4 flex cursor-pointer items-start gap-2.5 rounded-lg bg-ink-50 px-3.5 py-3">
+            <input
+              type="checkbox"
+              checked={form.automaticPaymentsEnabled}
+              onChange={(e) => setForm((f) => ({ ...f, automaticPaymentsEnabled: e.target.checked }))}
+              className="mt-0.5 h-4 w-4 rounded border-ink-300 text-violet-600 focus:ring-violet-500"
+            />
+            <span className="text-xs text-ink-600">
+              <span className="block font-semibold text-ink-800">Automatic Payments add-on</span>
+              Lets this landlord's tenants/shop owners pay rent online through Paystack. Enable only once they've
+              requested and paid for the add-on.
+            </span>
+          </label>
         </>
       )}
 
@@ -119,7 +132,7 @@ function PlanForm({ plan, onSubmit, onCancel, submitting, error }) {
         value={form.roomLimit}
         onChange={(e) => setForm((f) => ({ ...f, roomLimit: e.target.value }))}
       />
-      <FormField label="Price (₦ / month)" name="price" type="number" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} required />
+      <FormField label="Price (₦ / year)" name="price" type="number" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} required />
       {error && <p className="mb-4 text-sm font-medium text-red-500">{error}</p>}
       <div className="flex gap-3">
         <button type="button" onClick={onCancel} className="flex-1 rounded-xl border border-ink-200 py-2.5 text-sm font-bold text-ink-600 hover:bg-ink-50">Cancel</button>
@@ -133,7 +146,9 @@ function PlanForm({ plan, onSubmit, onCancel, submitting, error }) {
 
 function LandlordsSection({ landlords, plans, onCreate, onEdit, onToggleActive }) {
   const activeCount = landlords.filter((l) => l.subscriptionStatus === "ACTIVE").length;
-  const monthlyRevenue = landlords
+  // Annual license fees, not monthly — this is the active-landlord run-rate,
+  // not what actually landed this calendar month (see the Revenue tab for that).
+  const annualRevenue = landlords
     .filter((l) => l.subscriptionStatus === "ACTIVE" && l.plan)
     .reduce((sum, l) => sum + Number(l.plan.price), 0);
   const totalRooms = landlords.reduce((sum, l) => sum + l.totalRooms, 0);
@@ -143,7 +158,7 @@ function LandlordsSection({ landlords, plans, onCreate, onEdit, onToggleActive }
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Landlords signed up" value={landlords.length} icon={FaBuilding} />
         <StatCard label="Active subscriptions" value={activeCount} icon={FaCheckCircle} />
-        <StatCard label="Monthly revenue" value={formatNaira(monthlyRevenue)} icon={FaMoneyBillWave} />
+        <StatCard label="Annual license revenue" value={formatNaira(annualRevenue)} icon={FaMoneyBillWave} />
         <StatCard label="Total rooms managed" value={totalRooms} icon={FaFileInvoiceDollar} />
       </div>
 
@@ -154,7 +169,7 @@ function LandlordsSection({ landlords, plans, onCreate, onEdit, onToggleActive }
               <span className="text-sm font-bold text-ink-900">{p.name}</span>
             </div>
             <p className="text-xl font-extrabold text-ink-900">
-              {formatNaira(p.price)} <small className="text-xs font-normal text-ink-400">/mo</small>
+              {formatNaira(p.price)} <small className="text-xs font-normal text-ink-400">/year</small>
             </p>
             <p className="mt-1 text-xs text-ink-500">{p.roomLimit ? `Up to ${p.roomLimit} rooms` : "Unlimited rooms"}</p>
           </div>
@@ -176,6 +191,7 @@ function LandlordsSection({ landlords, plans, onCreate, onEdit, onToggleActive }
               <th className="px-4 py-3">Rooms</th>
               <th className="px-4 py-3">Tenants</th>
               <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Auto-Pay</th>
               <th className="px-4 py-3">Next Billing</th>
               <th className="px-4 py-3">Signed Up</th>
               <th className="px-4 py-3"></th>
@@ -192,6 +208,9 @@ function LandlordsSection({ landlords, plans, onCreate, onEdit, onToggleActive }
                 <td className="px-4 py-3 text-ink-600">{l.totalRooms}</td>
                 <td className="px-4 py-3 text-ink-600">{l.totalTenants}</td>
                 <td className="px-4 py-3"><Badge tone={STATUS_TONE[l.subscriptionStatus]}>{l.subscriptionStatus}</Badge></td>
+                <td className="px-4 py-3">
+                  {l.automaticPaymentsEnabled ? <Badge tone="bg-green-100 text-green-700">Enabled</Badge> : <span className="text-ink-300">Off</span>}
+                </td>
                 <td className="px-4 py-3 text-ink-600">{l.nextBillingDate ? formatDate(l.nextBillingDate) : "—"}</td>
                 <td className="px-4 py-3 text-ink-600">{formatDate(l.createdAt)}</td>
                 <td className="px-4 py-3">
@@ -265,7 +284,7 @@ function PlansSection({ plans, onEdit, onCreate }) {
               <button onClick={() => onEdit(p)} className="text-ink-400 hover:text-violet-600"><FaEdit size={13} /></button>
             </div>
             <p className="text-xl font-extrabold text-ink-900">
-              {formatNaira(p.price)} <small className="text-xs font-normal text-ink-400">/mo</small>
+              {formatNaira(p.price)} <small className="text-xs font-normal text-ink-400">/year</small>
             </p>
             <p className="mt-1 text-xs text-ink-500">{p.roomLimit ? `Up to ${p.roomLimit} rooms` : "Unlimited rooms"}</p>
           </div>
@@ -373,6 +392,7 @@ export default function AdminDashboard() {
           planId: form.planId || null,
           subscriptionStatus: form.subscriptionStatus,
           nextBillingDate: form.nextBillingDate || null,
+          automaticPaymentsEnabled: form.automaticPaymentsEnabled,
         });
       }
       setLandlordModal(null);
@@ -466,6 +486,7 @@ export default function AdminDashboard() {
                   planId: l.planId || "",
                   subscriptionStatus: l.subscriptionStatus,
                   nextBillingDate: l.nextBillingDate?.slice(0, 10) || "",
+                  automaticPaymentsEnabled: l.automaticPaymentsEnabled,
                 },
               })
             }

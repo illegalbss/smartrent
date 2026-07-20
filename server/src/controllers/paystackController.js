@@ -2,7 +2,6 @@ const crypto = require("crypto");
 const prisma = require("../config/prisma");
 const { resolveCoverage } = require("../services/paymentDates");
 const { paystackRequest } = require("../services/paystackClient");
-const { calculatePlatformFee, calculatePlatformFeeKobo, FEE_CAP } = require("../services/platformFee");
 
 const PAYSTACK_BASE = "https://api.paystack.co";
 const PAYSTACK_INTERVAL = { MONTHLY: "monthly", QUARTERLY: "quarterly", YEARLY: "annually" };
@@ -44,9 +43,16 @@ async function initializePayment(req, res, next) {
 
     const landlord = await prisma.landlord.findUnique({
       where: { id: tenant.landlordId },
-      select: { paystackSubaccountCode: true },
+      select: { paystackSubaccountCode: true, automaticPaymentsEnabled: true },
     });
-    if (!landlord?.paystackSubaccountCode) {
+    if (!landlord?.automaticPaymentsEnabled) {
+      return res.status(409).json({
+        success: false,
+        error: "Online rent collection isn't enabled for this account. Ask your landlord to request the Automatic Payments add-on.",
+        code: "ADDON_NOT_ENABLED",
+      });
+    }
+    if (!landlord.paystackSubaccountCode) {
       return res.status(409).json({
         success: false,
         error: "Online rent collection isn't set up for this property yet. Contact your landlord.",
@@ -68,15 +74,10 @@ async function initializePayment(req, res, next) {
       },
     });
 
-    // Paystack's subaccount percentage_charge (set to 1% at subaccount
-    // creation) applies automatically. Above the ₦25,000 cap, override with
-    // a fixed transaction_charge instead — Paystack has no built-in cap.
-    const percentageFeeNaira = rentAmountNaira * 0.01;
+    // Subaccount is created with percentage_charge: 0 — RentaFlow takes no
+    // cut of rent payments. Revenue comes from the flat annual license fee
+    // (and, once requested, the separate Automatic Payments add-on) instead.
     const splitParams = { subaccount: landlord.paystackSubaccountCode };
-    if (percentageFeeNaira > FEE_CAP) {
-      splitParams.transactionCharge = calculatePlatformFeeKobo(rentAmountNaira);
-      splitParams.bearer = "subaccount";
-    }
 
     let planCode;
     if (req.body?.enableRecurring) {
@@ -150,8 +151,7 @@ async function finalizePayment(reference) {
       status: "PAID",
       source: "PAYSTACK",
       paystackReference: reference,
-      // Actually charged by construction — see initializePayment's splitParams.
-      platformFeeCharged: calculatePlatformFee(amount),
+      // No per-transaction platform fee under the flat-annual-license model.
       notes: "Paid online via Paystack",
       createdById: txnRecord.tenantId,
       createdByRole: "TENANT",

@@ -188,6 +188,11 @@ model Landlord {
   paystackSubaccountCode String?              @map("paystack_subaccount_code")
   payoutVerified         Boolean              @default(false) @map("payout_verified")
 
+  // Automatic (online) tenant/shop-owner payments — a separate flat-annual
+  // add-on, off by default. Super Admin flips this on once a landlord
+  // actually requests and pays for it; only then can tenants pay online.
+  automaticPaymentsEnabled Boolean @default(false) @map("automatic_payments_enabled")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

@@ -97,7 +97,7 @@ async function updateLandlord(req, res, next) {
     const landlord = await prisma.landlord.findUnique({ where: { id: req.params.landlordId } });
     if (!landlord) return res.status(404).json({ success: false, error: "Landlord not found." });
 
-    const { name, phone, planId, subscriptionStatus, nextBillingDate } = req.body;
+    const { name, phone, planId, subscriptionStatus, nextBillingDate, automaticPaymentsEnabled } = req.body;
     const updated = await prisma.landlord.update({
       where: { id: landlord.id },
       data: {
@@ -106,6 +106,7 @@ async function updateLandlord(req, res, next) {
         ...(planId !== undefined && { planId: planId || null }),
         ...(subscriptionStatus !== undefined && { subscriptionStatus }),
         ...(nextBillingDate !== undefined && { nextBillingDate: nextBillingDate ? new Date(nextBillingDate) : null }),
+        ...(automaticPaymentsEnabled !== undefined && { automaticPaymentsEnabled }),
       },
       include: { plan: true },
     });
