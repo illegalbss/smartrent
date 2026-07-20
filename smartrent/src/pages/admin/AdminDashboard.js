@@ -9,6 +9,7 @@ import {
   FaBan,
   FaCheckCircle,
   FaSignOutAlt,
+  FaTrash,
 } from "react-icons/fa";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { superAdminApi } from "../../api/superAdmin";
@@ -144,7 +145,7 @@ function PlanForm({ plan, onSubmit, onCancel, submitting, error }) {
   );
 }
 
-function LandlordsSection({ landlords, plans, onCreate, onEdit, onToggleActive }) {
+function LandlordsSection({ landlords, plans, onCreate, onEdit, onToggleActive, onDelete }) {
   const activeCount = landlords.filter((l) => l.subscriptionStatus === "ACTIVE").length;
   // Annual license fees, not monthly — this is the active-landlord run-rate,
   // not what actually landed this calendar month (see the Revenue tab for that).
@@ -224,6 +225,9 @@ function LandlordsSection({ landlords, plans, onCreate, onEdit, onToggleActive }
                       title={l.subscriptionStatus === "CANCELED" ? "Reactivate" : "Deactivate"}
                     >
                       {l.subscriptionStatus === "CANCELED" ? <FaCheckCircle size={13} /> : <FaBan size={13} />}
+                    </button>
+                    <button onClick={() => onDelete(l)} className="text-ink-400 hover:text-red-600" title="Delete permanently">
+                      <FaTrash size={13} />
                     </button>
                   </div>
                 </td>
@@ -353,6 +357,7 @@ export default function AdminDashboard() {
   const [landlordModal, setLandlordModal] = useState(null); // { mode: 'create' | 'edit', landlord? }
   const [planModal, setPlanModal] = useState(null);
   const [toggleTarget, setToggleTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
 
@@ -416,6 +421,17 @@ export default function AdminDashboard() {
     } catch (err) {
       setError(err.message);
       setToggleTarget(null);
+    }
+  }
+
+  async function handleDeleteLandlord() {
+    try {
+      await superAdminApi.deleteLandlord(deleteTarget.id);
+      setDeleteTarget(null);
+      loadLandlords();
+    } catch (err) {
+      setError(err.message);
+      setDeleteTarget(null);
     }
   }
 
@@ -491,6 +507,7 @@ export default function AdminDashboard() {
               })
             }
             onToggleActive={(l) => setToggleTarget(l)}
+            onDelete={(l) => setDeleteTarget(l)}
           />
         )}
         {section === "revenue" && <RevenueSection revenue={revenue} />}
@@ -513,13 +530,23 @@ export default function AdminDashboard() {
         title={toggleTarget?.subscriptionStatus === "CANCELED" ? "Reactivate this landlord?" : "Deactivate this landlord?"}
         body={
           toggleTarget?.subscriptionStatus === "CANCELED"
-            ? "This restores their dashboard write access."
-            : "This blocks their dashboard from making any changes (read-only) until reactivated. Use this for support issues or non-payment."
+            ? "This restores their (and their secretaries') ability to log in."
+            : "This blocks the landlord and every secretary under them from logging in at all, until reactivated or the plan is renewed. Use this for support issues or non-payment."
         }
         confirmLabel={toggleTarget?.subscriptionStatus === "CANCELED" ? "Reactivate" : "Deactivate"}
         danger={toggleTarget?.subscriptionStatus !== "CANCELED"}
         onConfirm={handleToggleActive}
         onCancel={() => setToggleTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Permanently delete this landlord?"
+        body={`This permanently deletes "${deleteTarget?.name}" and every property, room, tenant, payment, and document under their account. This cannot be undone — deactivate instead if you just want to block access.`}
+        confirmLabel="Delete Permanently"
+        danger
+        onConfirm={handleDeleteLandlord}
+        onCancel={() => setDeleteTarget(null)}
       />
     </div>
   );

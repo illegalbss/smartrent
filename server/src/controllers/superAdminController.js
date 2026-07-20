@@ -150,6 +150,21 @@ async function reactivateLandlord(req, res, next) {
   }
 }
 
+// Permanent — cascades to every property, room, tenant, payment, document,
+// etc. under this landlord (see the onDelete: Cascade relations in
+// schema.prisma). Deactivate instead unless the account should truly be gone.
+async function deleteLandlord(req, res, next) {
+  try {
+    const landlord = await prisma.landlord.findUnique({ where: { id: req.params.landlordId } });
+    if (!landlord) return res.status(404).json({ success: false, error: "Landlord not found." });
+
+    await prisma.landlord.delete({ where: { id: landlord.id } });
+    res.json({ success: true, data: { message: "Landlord permanently deleted." } });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // Monthly + historical revenue, and overall platform stats — computed from
 // successful billing transactions only.
 async function getRevenue(req, res, next) {
@@ -218,6 +233,7 @@ module.exports = {
   updateLandlord,
   deactivateLandlord,
   reactivateLandlord,
+  deleteLandlord,
   getRevenue,
   listTransactions,
   getPlatformStats,

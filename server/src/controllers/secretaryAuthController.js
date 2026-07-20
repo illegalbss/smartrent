@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const { validationResult } = require("express-validator");
 const prisma = require("../config/prisma");
 const { signToken } = require("../utils/jwt");
+const { isSubscriptionBlocked, subscriptionBlockedMessage } = require("../services/subscriptionGuard");
 
 function sanitize(secretary) {
   const { passwordHash, inviteToken, ...rest } = secretary;
@@ -93,7 +94,10 @@ async function login(req, res, next) {
     }
 
     const { email, password } = req.body;
-    const secretary = await prisma.secretary.findUnique({ where: { email: email.toLowerCase() } });
+    const secretary = await prisma.secretary.findUnique({
+      where: { email: email.toLowerCase() },
+      include: { landlord: { select: { subscriptionStatus: true } } },
+    });
     if (!secretary || !secretary.passwordHash) {
       return res.status(401).json({ success: false, error: "Invalid email or password." });
     }
@@ -103,8 +107,17 @@ async function login(req, res, next) {
       return res.status(401).json({ success: false, error: "Invalid email or password." });
     }
 
+    if (isSubscriptionBlocked(secretary.landlord.subscriptionStatus)) {
+      return res.status(402).json({
+        success: false,
+        error: subscriptionBlockedMessage(secretary.landlord.subscriptionStatus),
+        code: "SUBSCRIPTION_BLOCKED",
+      });
+    }
+
+    const { landlord, ...secretaryFields } = secretary;
     const authToken = signToken({ id: secretary.id, role: "secretary", landlordId: secretary.landlordId });
-    res.json({ success: true, data: { token: authToken, secretary: sanitize(secretary) } });
+    res.json({ success: true, data: { token: authToken, secretary: sanitize(secretaryFields) } });
   } catch (err) {
     next(err);
   }

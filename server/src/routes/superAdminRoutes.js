@@ -7,6 +7,7 @@ const {
   updateLandlord,
   deactivateLandlord,
   reactivateLandlord,
+  deleteLandlord,
   getRevenue,
   listTransactions,
   getPlatformStats,
@@ -26,6 +27,7 @@ router.post("/superadmin/landlords", admin, createLandlord);
 router.put("/superadmin/landlords/:landlordId", admin, updateLandlord);
 router.post("/superadmin/landlords/:landlordId/deactivate", admin, deactivateLandlord);
 router.post("/superadmin/landlords/:landlordId/reactivate", admin, reactivateLandlord);
+router.delete("/superadmin/landlords/:landlordId", admin, deleteLandlord);
 
 router.get("/superadmin/plans", admin, listPlans);
 router.post("/superadmin/plans", admin, createPlan);

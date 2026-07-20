@@ -11,6 +11,7 @@ export const superAdminApi = {
   updateLandlord: (id, data) => api.put(`/superadmin/landlords/${id}`, data),
   deactivateLandlord: (id) => api.post(`/superadmin/landlords/${id}/deactivate`, {}),
   reactivateLandlord: (id) => api.post(`/superadmin/landlords/${id}/reactivate`, {}),
+  deleteLandlord: (id) => api.delete(`/superadmin/landlords/${id}`),
 
   listPlans: () => api.get("/superadmin/plans"),
   createPlan: (data) => api.post("/superadmin/plans", data),

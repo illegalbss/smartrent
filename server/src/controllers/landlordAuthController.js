@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const { validationResult } = require("express-validator");
 const prisma = require("../config/prisma");
 const { signToken } = require("../utils/jwt");
+const { isSubscriptionBlocked, subscriptionBlockedMessage } = require("../services/subscriptionGuard");
 
 function sanitize(landlord) {
   const { passwordHash, ...rest } = landlord;
@@ -58,6 +59,14 @@ async function login(req, res, next) {
     const valid = await bcrypt.compare(password, landlord.passwordHash);
     if (!valid) {
       return res.status(401).json({ success: false, error: "Invalid email or password." });
+    }
+
+    if (isSubscriptionBlocked(landlord.subscriptionStatus)) {
+      return res.status(402).json({
+        success: false,
+        error: subscriptionBlockedMessage(landlord.subscriptionStatus),
+        code: "SUBSCRIPTION_BLOCKED",
+      });
     }
 
     const token = signToken({ id: landlord.id, role: "landlord" });
