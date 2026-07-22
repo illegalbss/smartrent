@@ -10,6 +10,11 @@ import {
   FaCheckCircle,
   FaSignOutAlt,
   FaTrash,
+  FaChevronDown,
+  FaChevronRight,
+  FaStore,
+  FaHome,
+  FaHistory,
 } from "react-icons/fa";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { superAdminApi } from "../../api/superAdmin";
@@ -21,6 +26,8 @@ import { useAuth } from "../../context/AuthContext";
 
 const SECTIONS = [
   { key: "landlords", label: "Landlords", icon: FaBuilding },
+  { key: "properties-detail", label: "Properties Detail", icon: FaHome },
+  { key: "activity-logs", label: "Activity Logs", icon: FaHistory },
   { key: "revenue", label: "Revenue", icon: FaMoneyBillWave },
   { key: "plans", label: "Plans and Pricing", icon: FaFileInvoiceDollar },
   { key: "transactions", label: "Transactions", icon: FaFileInvoiceDollar },
@@ -145,6 +152,91 @@ function PlanForm({ plan, onSubmit, onCancel, submitting, error }) {
   );
 }
 
+function PropertiesDetailSection({ landlords }) {
+  const [expanded, setExpanded] = useState({});
+  const [search, setSearch] = useState("");
+
+  const term = search.trim().toLowerCase();
+  const filtered = term
+    ? landlords.filter(
+        (l) => l.name.toLowerCase().includes(term) || l.properties.some((p) => p.name.toLowerCase().includes(term))
+      )
+    : landlords;
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-bold text-ink-900">Landlords &amp; Their Properties</h2>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search landlord or property…"
+          className="w-64 rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500"
+        />
+      </div>
+
+      <div className="space-y-3">
+        {filtered.map((l) => {
+          const isOpen = !!expanded[l.id];
+          return (
+            <div key={l.id} className="overflow-hidden rounded-xl bg-ink-50">
+              <button
+                onClick={() => setExpanded((e) => ({ ...e, [l.id]: !e[l.id] }))}
+                className="flex w-full items-center justify-between gap-3 p-4 text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-100 text-sm font-bold text-violet-700">
+                    {l.name.slice(0, 2).toUpperCase()}
+                  </span>
+                  <div>
+                    <div className="text-sm font-bold text-ink-900">{l.name}</div>
+                    <div className="text-xs text-ink-400">
+                      {l.email} · {l.accountType || "—"} · {l.plan?.name || "No plan"}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-ink-500">
+                  <span>Properties: <b className="text-ink-800">{l.totalProperties}</b></span>
+                  <span>Rooms: <b className="text-ink-800">{l.totalRooms}</b></span>
+                  <span>Stores: <b className="text-ink-800">{l.totalStores}</b></span>
+                  {isOpen ? <FaChevronDown size={11} /> : <FaChevronRight size={11} />}
+                </div>
+              </button>
+
+              {isOpen && (
+                <div className="divide-y divide-white border-t border-white">
+                  {l.properties.length === 0 ? (
+                    <p className="px-4 py-3 text-xs text-ink-400">No properties yet.</p>
+                  ) : (
+                    l.properties.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between gap-3 px-4 py-2.5 pl-14">
+                        <div className="flex items-center gap-2.5">
+                          {p.propertyType === "COMMERCIAL" ? (
+                            <FaStore size={12} className="text-ink-400" />
+                          ) : (
+                            <FaHome size={12} className="text-ink-400" />
+                          )}
+                          <span className="text-sm font-semibold text-ink-800">{p.name}</span>
+                          <Badge tone={p.propertyType === "COMMERCIAL" ? "bg-ink-200 text-ink-700" : "bg-ink-100 text-ink-600"}>
+                            {p.propertyType === "COMMERCIAL" ? "Commercial" : "Residential"}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-ink-500">
+                          {p.totalRooms} {p.propertyType === "COMMERCIAL" ? "units" : "rooms"} · {p.occupiedRooms} occupied
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function LandlordsSection({ landlords, plans, onCreate, onEdit, onToggleActive, onDelete }) {
   const activeCount = landlords.filter((l) => l.subscriptionStatus === "ACTIVE").length;
   // Annual license fees, not monthly — this is the active-landlord run-rate,
@@ -240,7 +332,40 @@ function LandlordsSection({ landlords, plans, onCreate, onEdit, onToggleActive, 
   );
 }
 
-function RevenueSection({ revenue }) {
+function formatBytes(bytes) {
+  if (bytes === null || bytes === undefined) return "—";
+  const gb = bytes / 1024 ** 3;
+  if (gb >= 1) return `${gb.toFixed(2)} GB`;
+  return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+}
+
+function StorageUsageCard({ usage }) {
+  if (!usage) return null;
+  if (!usage.data) {
+    return <div className="rounded-xl bg-ink-50 p-5 text-sm text-ink-500">{usage.error || "Storage usage unavailable."}</div>;
+  }
+  const d = usage.data;
+  return (
+    <div className={`rounded-xl p-5 ${d.warning ? "bg-amber-50" : "bg-ink-50"}`}>
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="text-sm font-bold text-ink-900">Cloudinary Storage ({d.plan} plan)</h3>
+        {d.warning && <span className="text-xs font-bold text-amber-700">⚠ Approaching monthly limit</span>}
+      </div>
+      <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-white">
+        <div
+          className={`h-full rounded-full ${d.warning ? "bg-amber-500" : "bg-violet-500"}`}
+          style={{ width: `${Math.min(d.usedPercent, 100)}%` }}
+        />
+      </div>
+      <p className="text-xs text-ink-500">
+        {d.creditsUsed} / {d.creditsLimit} credits used ({d.usedPercent}%) — {formatBytes(d.storageBytes)} stored, {d.objectCount} files.
+        Free tier suspends uploads (no overage billing) once credits run out for the month.
+      </p>
+    </div>
+  );
+}
+
+function RevenueSection({ revenue, storageUsage }) {
   if (!revenue) return null;
   return (
     <div>
@@ -248,7 +373,7 @@ function RevenueSection({ revenue }) {
         <StatCard label="Revenue this month" value={formatNaira(revenue.monthlyRevenue)} icon={FaMoneyBillWave} />
         <StatCard label="Total revenue (all time)" value={formatNaira(revenue.totalRevenue)} icon={FaFileInvoiceDollar} />
       </div>
-      <div className="rounded-xl bg-ink-50 p-5">
+      <div className="mb-6 rounded-xl bg-ink-50 p-5">
         <h3 className="mb-3 text-sm font-bold text-ink-900">Monthly Revenue (last 12 months)</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
@@ -267,6 +392,7 @@ function RevenueSection({ revenue }) {
           </ResponsiveContainer>
         </div>
       </div>
+      <StorageUsageCard usage={storageUsage} />
     </div>
   );
 }
@@ -294,6 +420,74 @@ function PlansSection({ plans, onEdit, onCreate }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function ActivityLogsSection({ logs, landlords, roleFilter, setRoleFilter, landlordFilter, setLandlordFilter }) {
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-sm font-bold text-ink-900">Login &amp; Activity Logs</h2>
+        <div className="flex gap-2">
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500"
+          >
+            <option value="">All Roles</option>
+            <option value="LANDLORD">Landlord</option>
+            <option value="SECRETARY">Secretary</option>
+          </select>
+          <select
+            value={landlordFilter}
+            onChange={(e) => setLandlordFilter(e.target.value)}
+            className="rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500"
+          >
+            <option value="">All Landlords</option>
+            {landlords.map((l) => (
+              <option key={l.id} value={l.id}>{l.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {logs.length === 0 ? (
+        <div className="rounded-xl bg-ink-50 p-8 text-center text-sm text-ink-400">No activity recorded yet.</div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl bg-ink-50">
+          <table className="w-full min-w-[820px] text-left text-sm">
+            <thead>
+              <tr className="text-xs font-bold uppercase text-ink-400">
+                <th className="px-4 py-3">Date &amp; Time</th>
+                <th className="px-4 py-3">User</th>
+                <th className="px-4 py-3">Role</th>
+                <th className="px-4 py-3">Landlord Account</th>
+                <th className="px-4 py-3">Action</th>
+                <th className="px-4 py-3">IP Address</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white">
+              {logs.map((log) => (
+                <tr key={log.id}>
+                  <td className="px-4 py-3 text-ink-600">{new Date(log.createdAt).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}</td>
+                  <td className="px-4 py-3 text-ink-800">{log.userName || `Unknown (${log.attemptedEmail || "no email"})`}</td>
+                  <td className="px-4 py-3"><Badge tone="bg-ink-100 text-ink-600">{log.userRole}</Badge></td>
+                  <td className="px-4 py-3 text-ink-600">{log.landlord?.name || "—"}</td>
+                  <td className="px-4 py-3">
+                    {log.action === "LOGIN_SUCCESS" ? (
+                      <span className="font-semibold text-green-600">✓ Login successful</span>
+                    ) : (
+                      <span className="font-semibold text-red-600">✗ Failed login attempt</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs text-ink-500">{log.ipAddress || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -351,7 +545,11 @@ export default function AdminDashboard() {
   const [landlords, setLandlords] = useState(null);
   const [plans, setPlans] = useState([]);
   const [revenue, setRevenue] = useState(null);
+  const [storageUsage, setStorageUsage] = useState(null);
   const [transactions, setTransactions] = useState(null);
+  const [activityLogs, setActivityLogs] = useState(null);
+  const [roleFilter, setRoleFilter] = useState("");
+  const [landlordFilter, setLandlordFilter] = useState("");
   const [error, setError] = useState("");
 
   const [landlordModal, setLandlordModal] = useState(null); // { mode: 'create' | 'edit', landlord? }
@@ -369,9 +567,16 @@ export default function AdminDashboard() {
   }
   function loadRevenue() {
     superAdminApi.revenue().then((res) => setRevenue(res.data)).catch((err) => setError(err.message));
+    superAdminApi.storageUsage().then((res) => setStorageUsage(res)).catch(() => {});
   }
   function loadTransactions() {
     superAdminApi.transactions().then((res) => setTransactions(res.data)).catch((err) => setError(err.message));
+  }
+  function loadActivityLogs() {
+    superAdminApi
+      .activityLogs({ role: roleFilter, landlordId: landlordFilter })
+      .then((res) => setActivityLogs(res.data))
+      .catch((err) => setError(err.message));
   }
 
   useEffect(() => {
@@ -382,7 +587,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (section === "revenue" && !revenue) loadRevenue();
     if (section === "transactions" && !transactions) loadTransactions();
+    if (section === "activity-logs") loadActivityLogs();
   }, [section]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (section === "activity-logs") loadActivityLogs();
+  }, [roleFilter, landlordFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleLandlordSubmit(form) {
     setSubmitting(true);
@@ -510,7 +720,18 @@ export default function AdminDashboard() {
             onDelete={(l) => setDeleteTarget(l)}
           />
         )}
-        {section === "revenue" && <RevenueSection revenue={revenue} />}
+        {section === "properties-detail" && landlords && <PropertiesDetailSection landlords={landlords} />}
+        {section === "activity-logs" && activityLogs && (
+          <ActivityLogsSection
+            logs={activityLogs}
+            landlords={landlords || []}
+            roleFilter={roleFilter}
+            setRoleFilter={setRoleFilter}
+            landlordFilter={landlordFilter}
+            setLandlordFilter={setLandlordFilter}
+          />
+        )}
+        {section === "revenue" && <RevenueSection revenue={revenue} storageUsage={storageUsage} />}
         {section === "plans" && <PlansSection plans={plans} onEdit={(p) => setPlanModal({ mode: "edit", plan: p })} onCreate={() => setPlanModal({ mode: "create", plan: { name: "", roomLimit: "", price: "" } })} />}
         {section === "transactions" && transactions && <TransactionsSection transactions={transactions} />}
       </div>

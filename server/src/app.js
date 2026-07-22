@@ -8,6 +8,10 @@ const { notFound, errorHandler } = require("./middleware/errorHandler");
 
 const app = express();
 
+// Vercel (and most PaaS) sit behind a proxy — without this, req.ip is the
+// proxy's own address, not the real client, which breaks IP logging below.
+app.set("trust proxy", true);
+
 app.use(helmet());
 app.use(cors());
 // Captures the raw request body alongside the parsed one — needed to verify

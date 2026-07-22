@@ -1,20 +1,29 @@
 const bcrypt = require("bcryptjs");
+const cloudinary = require("cloudinary").v2;
 const prisma = require("../config/prisma");
+
+// Above this, the Super Admin dashboard flags storage usage as a warning —
+// Cloudinary's free tier suspends uploads once the monthly credit pool runs
+// out rather than overage-billing, so this is worth catching before it bites.
+const STORAGE_WARNING_THRESHOLD = 80;
 
 function sanitizeLandlord(landlord) {
   const { passwordHash, ...rest } = landlord;
   return rest;
 }
 
-// Every landlord on the platform, with the counts and billing info the
-// Super Admin needs to see at a glance — never scoped to one landlord,
-// unlike every other controller in this app.
+// Every landlord on the platform, with the counts, billing info, and
+// per-property breakdown the Super Admin needs — never scoped to one
+// landlord, unlike every other controller in this app.
 async function listLandlords(req, res, next) {
   try {
     const landlords = await prisma.landlord.findMany({
       include: {
         plan: true,
-        properties: { select: { id: true, rooms: { select: { id: true } } } },
+        properties: {
+          select: { id: true, name: true, propertyType: true, rooms: { select: { id: true, status: true } } },
+          orderBy: { createdAt: "desc" },
+        },
         tenants: { select: { id: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -23,12 +32,22 @@ async function listLandlords(req, res, next) {
     const data = landlords.map((l) => {
       const totalProperties = l.properties.length;
       const totalRooms = l.properties.reduce((sum, p) => sum + p.rooms.length, 0);
+      const totalStores = l.properties.filter((p) => p.propertyType === "COMMERCIAL").length;
+      const propertyBreakdown = l.properties.map((p) => ({
+        id: p.id,
+        name: p.name,
+        propertyType: p.propertyType,
+        totalRooms: p.rooms.length,
+        occupiedRooms: p.rooms.filter((r) => r.status === "OCCUPIED").length,
+      }));
       const { properties, tenants, ...rest } = l;
       return {
         ...sanitizeLandlord(rest),
         totalProperties,
         totalRooms,
+        totalStores,
         totalTenants: tenants.length,
+        properties: propertyBreakdown,
       };
     });
 
@@ -226,6 +245,53 @@ async function getPlatformStats(req, res, next) {
   }
 }
 
+// Cloudinary's free tier suspends uploads once the monthly credit pool is
+// used up (no overage billing) — this surfaces that before it happens.
+async function getStorageUsage(req, res, next) {
+  try {
+    const usage = await cloudinary.api.usage();
+    const usedPercent = usage.credits?.used_percent ?? (usage.credits ? (usage.credits.usage / usage.credits.limit) * 100 : 0);
+    res.json({
+      success: true,
+      data: {
+        plan: usage.plan,
+        creditsUsed: usage.credits?.usage ?? null,
+        creditsLimit: usage.credits?.limit ?? null,
+        usedPercent: Math.round(usedPercent * 10) / 10,
+        storageBytes: usage.storage?.usage ?? null,
+        bandwidthBytes: usage.bandwidth?.usage ?? null,
+        objectCount: usage.objects?.usage ?? null,
+        warning: usedPercent >= STORAGE_WARNING_THRESHOLD,
+      },
+    });
+  } catch (err) {
+    // Cloudinary being unreachable shouldn't break the rest of the admin
+    // dashboard — report it as a soft failure the UI can show inline.
+    res.json({ success: true, data: null, error: "Could not reach Cloudinary to check usage." });
+  }
+}
+
+// Login/action history across every landlord and secretary — filterable by
+// role and/or a specific landlord account, so a Super Admin can trace a
+// secretary's activity back to which landlord they work for.
+async function listActivityLogs(req, res, next) {
+  try {
+    const { role, landlordId } = req.query;
+    const logs = await prisma.activityLog.findMany({
+      where: {
+        ...(role && ["LANDLORD", "SECRETARY"].includes(role) && { userRole: role }),
+        ...(landlordId && { landlordId }),
+      },
+      include: { landlord: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 300,
+    });
+    res.json({ success: true, data: logs });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listLandlords,
   getLandlord,
@@ -237,4 +303,6 @@ module.exports = {
   getRevenue,
   listTransactions,
   getPlatformStats,
+  getStorageUsage,
+  listActivityLogs,
 };

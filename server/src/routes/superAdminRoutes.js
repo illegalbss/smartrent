@@ -11,6 +11,8 @@ const {
   getRevenue,
   listTransactions,
   getPlatformStats,
+  getStorageUsage,
+  listActivityLogs,
 } = require("../controllers/superAdminController");
 const { listPlans, updatePlan, createPlan } = require("../controllers/subscriptionPlanController");
 
@@ -18,8 +20,10 @@ const router = Router();
 const admin = requireAuth("superadmin");
 
 router.get("/superadmin/stats", admin, getPlatformStats);
+router.get("/superadmin/storage-usage", admin, getStorageUsage);
 router.get("/superadmin/revenue", admin, getRevenue);
 router.get("/superadmin/transactions", admin, listTransactions);
+router.get("/superadmin/activity-logs", admin, listActivityLogs);
 
 router.get("/superadmin/landlords", admin, listLandlords);
 router.get("/superadmin/landlords/:landlordId", admin, getLandlord);

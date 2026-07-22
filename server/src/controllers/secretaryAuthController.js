@@ -4,6 +4,7 @@ const { validationResult } = require("express-validator");
 const prisma = require("../config/prisma");
 const { signToken } = require("../utils/jwt");
 const { isSubscriptionBlocked, subscriptionBlockedMessage } = require("../services/subscriptionGuard");
+const { logLoginAttempt } = require("../services/activityLog");
 
 function sanitize(secretary) {
   const { passwordHash, inviteToken, ...rest } = secretary;
@@ -99,21 +100,47 @@ async function login(req, res, next) {
       include: { landlord: { select: { subscriptionStatus: true } } },
     });
     if (!secretary || !secretary.passwordHash) {
+      await logLoginAttempt({ req, userRole: "SECRETARY", action: "LOGIN_FAILED", attemptedEmail: email });
       return res.status(401).json({ success: false, error: "Invalid email or password." });
     }
 
     const valid = await bcrypt.compare(password, secretary.passwordHash);
     if (!valid) {
+      await logLoginAttempt({
+        req,
+        userId: secretary.id,
+        userName: secretary.name,
+        userRole: "SECRETARY",
+        landlordId: secretary.landlordId,
+        action: "LOGIN_FAILED",
+      });
       return res.status(401).json({ success: false, error: "Invalid email or password." });
     }
 
     if (isSubscriptionBlocked(secretary.landlord.subscriptionStatus)) {
+      await logLoginAttempt({
+        req,
+        userId: secretary.id,
+        userName: secretary.name,
+        userRole: "SECRETARY",
+        landlordId: secretary.landlordId,
+        action: "LOGIN_FAILED",
+      });
       return res.status(402).json({
         success: false,
         error: subscriptionBlockedMessage(secretary.landlord.subscriptionStatus),
         code: "SUBSCRIPTION_BLOCKED",
       });
     }
+
+    await logLoginAttempt({
+      req,
+      userId: secretary.id,
+      userName: secretary.name,
+      userRole: "SECRETARY",
+      landlordId: secretary.landlordId,
+      action: "LOGIN_SUCCESS",
+    });
 
     const { landlord, ...secretaryFields } = secretary;
     const authToken = signToken({ id: secretary.id, role: "secretary", landlordId: secretary.landlordId });

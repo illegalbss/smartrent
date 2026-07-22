@@ -165,6 +165,35 @@ model BillingTransaction {
   @@map("billing_transactions")
 }
 
+enum ActivityAction {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+}
+
+// Every landlord/secretary login attempt, successful or not — landlordId is
+// null only when the attempt didn't even resolve to a known account (e.g. a
+// typo'd or made-up email), in which case attemptedEmail is what's shown
+// instead. Lets a Super Admin trace a secretary's activity back to which
+// landlord they work for, and spot suspicious repeated failed logins.
+model ActivityLog {
+  id             String         @id @default(cuid())
+  userId         String?        @map("user_id")
+  userName       String?        @map("user_name")
+  userRole       ActorRole      @map("user_role")
+  landlordId     String?        @map("landlord_id")
+  action         ActivityAction
+  attemptedEmail String?        @map("attempted_email")
+  ipAddress      String?        @map("ip_address")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  landlord Landlord? @relation(fields: [landlordId], references: [id], onDelete: SetNull)
+
+  @@index([landlordId])
+  @@index([userRole])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
 model Landlord {
   id                       String             @id @default(cuid())
   name                     String
@@ -208,6 +237,7 @@ model Landlord {
   houseRules           HouseRules[]
   paystackTransactions PaystackTransaction[]
   billingTransactions  BillingTransaction[]
+  activityLogs         ActivityLog[]
 
   @@index([planId])
   @@map("landlords")

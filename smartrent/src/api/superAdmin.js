@@ -2,6 +2,7 @@ import { api } from "./client";
 
 export const superAdminApi = {
   stats: () => api.get("/superadmin/stats"),
+  storageUsage: () => api.get("/superadmin/storage-usage"),
   revenue: () => api.get("/superadmin/revenue"),
   transactions: () => api.get("/superadmin/transactions"),
 
@@ -16,6 +17,11 @@ export const superAdminApi = {
   listPlans: () => api.get("/superadmin/plans"),
   createPlan: (data) => api.post("/superadmin/plans", data),
   updatePlan: (id, data) => api.put(`/superadmin/plans/${id}`, data),
+
+  activityLogs: (params = {}) => {
+    const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v))).toString();
+    return api.get(`/superadmin/activity-logs${qs ? `?${qs}` : ""}`);
+  },
 };
 
 export const plansApi = {

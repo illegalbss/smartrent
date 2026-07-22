@@ -3,6 +3,7 @@ const { validationResult } = require("express-validator");
 const prisma = require("../config/prisma");
 const { signToken } = require("../utils/jwt");
 const { isSubscriptionBlocked, subscriptionBlockedMessage } = require("../services/subscriptionGuard");
+const { logLoginAttempt } = require("../services/activityLog");
 
 function sanitize(landlord) {
   const { passwordHash, ...rest } = landlord;
@@ -53,21 +54,47 @@ async function login(req, res, next) {
     const { email, password } = req.body;
     const landlord = await prisma.landlord.findUnique({ where: { email: email.toLowerCase() } });
     if (!landlord) {
+      await logLoginAttempt({ req, userRole: "LANDLORD", action: "LOGIN_FAILED", attemptedEmail: email });
       return res.status(401).json({ success: false, error: "Invalid email or password." });
     }
 
     const valid = await bcrypt.compare(password, landlord.passwordHash);
     if (!valid) {
+      await logLoginAttempt({
+        req,
+        userId: landlord.id,
+        userName: landlord.name,
+        userRole: "LANDLORD",
+        landlordId: landlord.id,
+        action: "LOGIN_FAILED",
+      });
       return res.status(401).json({ success: false, error: "Invalid email or password." });
     }
 
     if (isSubscriptionBlocked(landlord.subscriptionStatus)) {
+      await logLoginAttempt({
+        req,
+        userId: landlord.id,
+        userName: landlord.name,
+        userRole: "LANDLORD",
+        landlordId: landlord.id,
+        action: "LOGIN_FAILED",
+      });
       return res.status(402).json({
         success: false,
         error: subscriptionBlockedMessage(landlord.subscriptionStatus),
         code: "SUBSCRIPTION_BLOCKED",
       });
     }
+
+    await logLoginAttempt({
+      req,
+      userId: landlord.id,
+      userName: landlord.name,
+      userRole: "LANDLORD",
+      landlordId: landlord.id,
+      action: "LOGIN_SUCCESS",
+    });
 
     const token = signToken({ id: landlord.id, role: "landlord" });
     res.json({ success: true, data: { token, landlord: sanitize(landlord) } });
