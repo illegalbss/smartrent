@@ -3,8 +3,8 @@ import Logo from "./Logo";
 export default function Footer() {
   return (
     <footer id="contact" className="border-t border-ink-100 bg-ink-900 text-ink-200">
-      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 py-14 sm:px-6 md:grid-cols-3 lg:px-8">
-        <div>
+      <div className="mx-auto grid max-w-7xl grid-cols-2 gap-10 px-4 py-14 sm:px-6 md:grid-cols-3 lg:px-8">
+        <div className="col-span-2 md:col-span-1">
           <Logo light iconLinkTo="/admin/login" />
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-ink-400">
             RentaFlow helps landlords, secretaries, and tenants/shop owners track properties, payments, and

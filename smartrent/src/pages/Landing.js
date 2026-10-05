@@ -8,8 +8,9 @@ import {
   FaShieldAlt,
   FaArrowRight,
 } from "react-icons/fa";
-import PublicNavbar from "../components/PublicNavbar";
+import PublicSidebar from "../components/PublicSidebar";
 import Footer from "../components/Footer";
+import DownloadAppButton from "../components/DownloadAppButton";
 import galleryTownhouse from "../assets/gallery-townhouse.jpg";
 
 const FEATURES = [
@@ -73,8 +74,9 @@ const ABOUT_POINTS = [
 export default function Landing() {
   return (
     <div className="min-h-screen bg-white" id="top">
-      <PublicNavbar />
+      <PublicSidebar />
 
+      <div className="lg:pl-64">
       <section className="relative overflow-hidden bg-gradient-to-b from-brand-50/60 to-white">
         <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:py-24 lg:px-8">
           <div>
@@ -101,6 +103,7 @@ export default function Landing() {
               >
                 Login
               </Link>
+              <DownloadAppButton className="flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-6 py-3.5 text-sm font-bold text-ink-700 transition hover:border-brand-300 hover:text-brand-600" />
             </div>
           </div>
           <div className="overflow-hidden rounded-2xl shadow-soft">
@@ -192,6 +195,7 @@ export default function Landing() {
       </section>
 
       <Footer />
+      </div>
     </div>
   );
 }

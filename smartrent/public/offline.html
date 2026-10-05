@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#5c1010" />
+    <title>RentaFlow – Offline</title>
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+        background: #f9fafb;
+        color: #1f2329;
+      }
+      .wrap {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 24px;
+      }
+      .badge {
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        background: #5c1010;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+      }
+      .badge svg { width: 30px; height: 30px; }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 8px;
+      }
+      p {
+        margin: 0 0 20px;
+        color: #545e70;
+        max-width: 320px;
+        line-height: 1.5;
+      }
+      button {
+        border: none;
+        background: #5c1010;
+        color: #fff;
+        font-weight: 600;
+        font-size: 14px;
+        padding: 10px 20px;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+      button:active { opacity: 0.85; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="badge">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 3 3 10.5V21h6v-6h6v6h6V10.5L12 3Z" fill="#d4a017" />
+        </svg>
+      </div>
+      <h1>You're offline</h1>
+      <p>RentaFlow can't reach the network right now. Check your connection and try again — nothing here is cached or stale, so we won't show you old payment or occupant data.</p>
+      <button onclick="location.reload()">Try again</button>
+    </div>
+  </body>
+</html>

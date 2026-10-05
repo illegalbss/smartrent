@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import InstallPrompt from "./components/InstallPrompt";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -225,6 +226,7 @@ export default function App() {
 
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <InstallPrompt />
     </AuthProvider>
   );
 }

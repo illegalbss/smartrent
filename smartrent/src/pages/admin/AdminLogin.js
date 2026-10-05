@@ -1,16 +1,28 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { FaCrown, FaEnvelope, FaLock } from "react-icons/fa";
+import { Link, useNavigate } from "react-router-dom";
+import { FaArrowLeft, FaCrown, FaEnvelope, FaLock } from "react-icons/fa";
 import FormField from "../../components/FormField";
 import { useAuth } from "../../context/AuthContext";
 
 export default function AdminLogin() {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Already signed in as anyone? Send them back to their own dashboard;
+  // otherwise fall back to the public homepage.
+  const backTo =
+    user?.role === "superadmin"
+      ? "/admin/dashboard"
+      : user?.role === "tenant"
+        ? "/dashboard/tenant"
+        : user
+          ? "/dashboard/staff"
+          : "/";
+  const backLabel = user ? "Back to dashboard" : "Back to homepage";
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -68,6 +80,14 @@ export default function AdminLogin() {
             {submitting ? "Signing in…" : "Sign In"}
           </button>
         </form>
+
+        <Link
+          to={backTo}
+          className="mt-5 flex items-center justify-center gap-2 text-sm font-semibold text-violet-600 hover:text-violet-700"
+        >
+          <FaArrowLeft size={12} />
+          {backLabel}
+        </Link>
       </div>
     </div>
   );

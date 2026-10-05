@@ -3,6 +3,8 @@ import { BrowserRouter } from 'react-router-dom';
 import './index.css';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
+import './utils/installApp'; // capture the install prompt as early as possible
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
@@ -12,3 +14,5 @@ root.render(
     </BrowserRouter>
   </ErrorBoundary>
 );
+
+serviceWorkerRegistration.register();

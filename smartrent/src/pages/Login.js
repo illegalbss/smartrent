@@ -5,6 +5,7 @@ import AuthLayout from "../components/AuthLayout";
 import FormField from "../components/FormField";
 import RoleSelector from "../components/RoleSelector";
 import { useAuth } from "../context/AuthContext";
+import DownloadAppButton from "../components/DownloadAppButton";
 
 const ROLES = [
   { value: "landlord", label: "Landlord", icon: FaBuilding },
@@ -91,6 +92,9 @@ export default function Login() {
       <p className="mt-2 text-center text-xs text-ink-400">
         Secretaries and Tenants: use the invite link your landlord sent you to set up your account.
       </p>
+      <div className="mt-6 flex justify-center">
+        <DownloadAppButton className="flex items-center gap-2 text-sm font-semibold text-brand-600 hover:text-brand-700" />
+      </div>
     </AuthLayout>
   );
 }
