@@ -73,9 +73,12 @@ async function registerTenant(req, res, next) {
       nextOfKinPhone,
     } = req.body;
 
-    const existing = await prisma.tenant.findUnique({ where: { email: email.toLowerCase() } });
-    if (existing) {
-      return res.status(409).json({ success: false, error: "A tenant with this email already exists." });
+    const normalizedEmail = email ? email.trim().toLowerCase() : null;
+    if (normalizedEmail) {
+      const existing = await prisma.tenant.findUnique({ where: { email: normalizedEmail } });
+      if (existing) {
+        return res.status(409).json({ success: false, error: "A tenant with this email already exists." });
+      }
     }
 
     // Occupant type follows the room's property: a room on a Commercial
@@ -95,14 +98,16 @@ async function registerTenant(req, res, next) {
       resolvedOccupantType = room.property.propertyType === "COMMERCIAL" ? "SHOP_OWNER" : "RESIDENTIAL_TENANT";
     }
 
-    const inviteToken = crypto.randomBytes(24).toString("hex");
+    // Login is by email, so a tenant registered without one gets no invite —
+    // it's issued later if staff add an email (see updateTenant).
+    const inviteToken = normalizedEmail ? crypto.randomBytes(24).toString("hex") : null;
     const tenant = await prisma.tenant.create({
       data: {
         landlordId: req.landlordId,
         roomId: room?.id || null,
         occupantType: resolvedOccupantType,
         name,
-        email: email.toLowerCase(),
+        email: normalizedEmail,
         phone,
         dateCommencement: dateCommencement ? new Date(dateCommencement) : null,
         dateExpiration: dateExpiration ? new Date(dateExpiration) : null,
@@ -212,6 +217,7 @@ async function updateTenant(req, res, next) {
 
     const {
       name,
+      email,
       phone,
       dateCommencement,
       dateExpiration,
@@ -223,6 +229,24 @@ async function updateTenant(req, res, next) {
       nextOfKinName,
       nextOfKinPhone,
     } = req.body;
+
+    // Email can be added/changed later (e.g. a tenant registered without one).
+    // Adding one to a tenant who has never activated issues a fresh invite.
+    let emailUpdate;
+    let newInviteToken;
+    if (email !== undefined) {
+      const normalizedEmail = email ? email.trim().toLowerCase() : null;
+      if (normalizedEmail !== tenant.email) {
+        if (normalizedEmail) {
+          const taken = await prisma.tenant.findUnique({ where: { email: normalizedEmail } });
+          if (taken) return res.status(409).json({ success: false, error: "A tenant with this email already exists." });
+        }
+        emailUpdate = normalizedEmail;
+        if (normalizedEmail && !tenant.passwordHash && !tenant.inviteToken) {
+          newInviteToken = crypto.randomBytes(24).toString("hex");
+        }
+      }
+    }
 
     // Handle room reassignment: free the old room, occupy the new one, and
     // re-derive occupantType from the new room's property (a tenant moving
@@ -250,6 +274,8 @@ async function updateTenant(req, res, next) {
       where: { id: tenant.id },
       data: {
         ...(name !== undefined && { name }),
+        ...(emailUpdate !== undefined && { email: emailUpdate }),
+        ...(newInviteToken && { inviteToken: newInviteToken }),
         ...(phone !== undefined && { phone }),
         ...(dateCommencement !== undefined && { dateCommencement: dateCommencement ? new Date(dateCommencement) : null }),
         ...(dateExpiration !== undefined && { dateExpiration: dateExpiration ? new Date(dateExpiration) : null }),
@@ -263,7 +289,7 @@ async function updateTenant(req, res, next) {
         ...(nextOfKinPhone !== undefined && { nextOfKinPhone: nextOfKinPhone || null }),
       },
     });
-    res.json({ success: true, data: sanitize(updated) });
+    res.json({ success: true, data: { ...sanitize(updated), ...(newInviteToken && { inviteToken: newInviteToken }) } });
   } catch (err) {
     next(err);
   }

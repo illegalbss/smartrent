@@ -60,6 +60,7 @@ function leaseStatus(tenant) {
 function TenantEditForm({ tenant, onSubmit, onCancel, submitting, error }) {
   const [form, setForm] = useState({
     name: tenant.name,
+    email: tenant.email || "",
     phone: tenant.phone || "",
     dateCommencement: tenant.dateCommencement?.slice(0, 10) || "",
     dateExpiration: tenant.dateExpiration?.slice(0, 10) || "",
@@ -101,6 +102,13 @@ function TenantEditForm({ tenant, onSubmit, onCancel, submitting, error }) {
       }}
     >
       <FormField label="Tenant's Name" name="name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
+      <FormField
+        label="Email Address (optional — needed for login)"
+        name="email"
+        type="email"
+        value={form.email}
+        onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+      />
       <FormField label="Phone Number" name="phone" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
 
       <div className="mb-4">
@@ -737,6 +745,7 @@ export default function TenantDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
   const [actionMsg, setActionMsg] = useState("");
+  const [inviteLink, setInviteLink] = useState("");
   const [offboardConfirm, setOffboardConfirm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -757,8 +766,11 @@ export default function TenantDetail() {
     setSubmitting(true);
     setFormError("");
     try {
-      await tenantsApi.update(id, form);
+      const res = await tenantsApi.update(id, { ...form, email: form.email.trim() || null });
       setEditModal(false);
+      if (res.data?.inviteToken) {
+        setInviteLink(`${window.location.origin}/accept-invite?token=${res.data.inviteToken}&role=tenant`);
+      }
       load();
     } catch (err) {
       setFormError(err.message);
@@ -917,7 +929,7 @@ export default function TenantDetail() {
   }
 
   return (
-    <DashboardShell navItems={STAFF_NAV} title={tenant?.name || "Tenant"} subtitle={tenant?.email}>
+    <DashboardShell navItems={STAFF_NAV} title={tenant?.name || "Tenant"} subtitle={tenant?.email || undefined}>
       <button
         onClick={() => navigate("/dashboard/staff/tenants")}
         className="mb-5 inline-flex items-center gap-1.5 text-sm font-semibold text-ink-500 hover:text-brand-600"
@@ -927,6 +939,20 @@ export default function TenantDetail() {
 
       {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</div>}
       {actionMsg && <div className="mb-4 rounded-lg bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700">{actionMsg}</div>}
+      {inviteLink && (
+        <div className="mb-4 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-700">
+          <p className="font-medium">Email added. Share this activation link with the tenant so they can set up their login:</p>
+          <div className="mt-2 break-all rounded-md bg-white px-3 py-2 font-mono text-xs text-ink-700">{inviteLink}</div>
+          <div className="mt-2 flex gap-2">
+            <button onClick={() => navigator.clipboard?.writeText(inviteLink)} className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-600">
+              Copy Link
+            </button>
+            <button onClick={() => setInviteLink("")} className="rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-bold text-brand-700 hover:bg-white">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {tenant && (
         <div className="space-y-5">
@@ -943,14 +969,16 @@ export default function TenantDetail() {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-extrabold text-ink-900">{tenant.name}</h2>
-                  <Badge tone={tenant.inviteAcceptedAt ? "green" : "amber"}>{tenant.inviteAcceptedAt ? "Active Tenant" : "Invite Pending"}</Badge>
+                  <Badge tone={tenant.inviteAcceptedAt ? "green" : "amber"}>
+                    {tenant.inviteAcceptedAt ? "Active Tenant" : tenant.email ? "Invite Pending" : "No Login (no email)"}
+                  </Badge>
                 </div>
                 <p className="text-xs text-ink-400">
                   {tenant.room ? `Room ${tenant.room.roomNumber}, ${tenant.room.property.name}` : "Unassigned"}
                 </p>
                 <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-ink-500">
                   <span>{tenant.phone || "No phone"}</span>
-                  <span>{tenant.email}</span>
+                  <span>{tenant.email || "No email"}</span>
                   <span>Move-in: {formatDate(tenant.dateCommencement)}</span>
                   <span>Lease End: {formatDate(tenant.dateExpiration)}</span>
                 </div>

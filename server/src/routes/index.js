@@ -17,6 +17,7 @@ const superAdminAuthRoutes = require("./superAdminAuthRoutes");
 const superAdminRoutes = require("./superAdminRoutes");
 const subscriptionPlanRoutes = require("./subscriptionPlanRoutes");
 const payoutRoutes = require("./payoutRoutes");
+const passwordResetRoutes = require("./passwordResetRoutes");
 
 const router = Router();
 
@@ -39,5 +40,6 @@ router.use(superAdminAuthRoutes);
 router.use(superAdminRoutes);
 router.use(subscriptionPlanRoutes);
 router.use(payoutRoutes);
+router.use(passwordResetRoutes);
 
 module.exports = router;

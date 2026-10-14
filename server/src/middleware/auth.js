@@ -10,7 +10,13 @@ function authenticate(req, res, next) {
   }
 
   try {
-    req.auth = verifyToken(token);
+    const payload = verifyToken(token);
+    // Special-purpose tokens (e.g. password reset links) are signed with the
+    // same secret but are never valid as a login session.
+    if (payload.purpose || !payload.id) {
+      return res.status(401).json({ success: false, error: "Invalid or expired token." });
+    }
+    req.auth = payload;
     next();
   } catch (err) {
     return res.status(401).json({ success: false, error: "Invalid or expired token." });

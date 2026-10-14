@@ -20,6 +20,7 @@ import FormField from "../../../components/FormField";
 import { STAFF_NAV } from "../../../config/navigation";
 import { propertiesApi } from "../../../api/properties";
 import { tenantsApi } from "../../../api/tenants";
+import { printTenantList } from "../../../utils/tenantListReport";
 
 const PAYMENT_TONE = { PAID: "green", PARTIAL: "amber", OWING: "red", NO_PAYMENTS: "ink" };
 const PAYMENT_LABEL = { PAID: "Paid", PARTIAL: "Partial", OWING: "Outstanding", NO_PAYMENTS: "No Payments" };
@@ -60,12 +61,13 @@ function RegisterTenantForm({ property, rooms, onSubmit, onCancel, submitting, e
     nextOfKinPhone: "",
   });
   const [inviteLink, setInviteLink] = useState("");
+  const [registeredWithoutEmail, setRegisteredWithoutEmail] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     const payload = {
       name: form.name,
-      email: form.email,
+      email: form.email.trim() || undefined,
       phone: form.phone || undefined,
       roomId: form.roomId || undefined,
       dateCommencement: form.dateCommencement || undefined,
@@ -78,7 +80,23 @@ function RegisterTenantForm({ property, rooms, onSubmit, onCancel, submitting, e
     const result = await onSubmit(payload);
     if (result?.inviteToken) {
       setInviteLink(`${window.location.origin}/accept-invite?token=${result.inviteToken}&role=tenant`);
+    } else if (result) {
+      setRegisteredWithoutEmail(true);
     }
+  }
+
+  if (registeredWithoutEmail) {
+    return (
+      <div>
+        <p className="text-sm text-ink-600">
+          {occupantWord} registered without an email. You can record their payments and documents as normal. They won't be
+          able to log in until you add an email from their profile (Edit), which gives you an activation link to share.
+        </p>
+        <button onClick={onCancel} className="mt-4 w-full rounded-xl bg-brand-500 py-2.5 text-sm font-bold text-white hover:bg-brand-600">
+          Done
+        </button>
+      </div>
+    );
   }
 
   if (inviteLink) {
@@ -103,7 +121,7 @@ function RegisterTenantForm({ property, rooms, onSubmit, onCancel, submitting, e
     <form onSubmit={handleSubmit}>
       <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-brand-600">Registering into {property.name}</p>
       <FormField label={`${occupantWord}'s Name`} name="name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
-      <FormField label="Email Address" name="email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} required />
+      <FormField label="Email Address (optional — needed for login)" name="email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
       <FormField label="Phone Number" name="phone" type="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
 
       {isCommercial && (
@@ -168,6 +186,7 @@ export default function PropertyTenants() {
   const [formError, setFormError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [menuOpenId, setMenuOpenId] = useState(null);
+  const [confirmPrint, setConfirmPrint] = useState(false);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -206,7 +225,7 @@ export default function PropertyTenants() {
     if (!tenants) return [];
     const q = search.trim().toLowerCase();
     let list = tenants.filter((t) => {
-      if (q && !t.name.toLowerCase().includes(q) && !t.email.toLowerCase().includes(q) && !(t.room?.roomNumber || "").toLowerCase().includes(q)) return false;
+      if (q && !t.name.toLowerCase().includes(q) && !(t.email || "").toLowerCase().includes(q) && !(t.room?.roomNumber || "").toLowerCase().includes(q)) return false;
       if (statusFilter === "ACTIVE" && !t.inviteAcceptedAt) return false;
       if (statusFilter === "PENDING" && t.inviteAcceptedAt) return false;
       if (leaseFilter !== "ALL" && leaseState(t) !== leaseFilter) return false;
@@ -252,26 +271,9 @@ export default function PropertyTenants() {
     }
   }
 
-  function handleExport() {
-    const headers = ["Name", "Email", "Room", "Phone", "Payment Status", "Outstanding", "Next Payment Due", "Lease Ends"];
-    const rows = filteredSorted.map((t) => [
-      t.name,
-      t.email,
-      t.room?.roomNumber || "",
-      t.phone || "",
-      PAYMENT_LABEL[t.lastPaymentStatus || "NO_PAYMENTS"],
-      t.outstanding,
-      t.nextDueDate ? formatDate(t.nextDueDate) : "",
-      t.dateExpiration ? formatDate(t.dateExpiration) : "",
-    ]);
-    const csv = [headers, ...rows].map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${property?.name || "tenants"}-tenants.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  function handlePrintConfirmed() {
+    setConfirmPrint(false);
+    printTenantList({ property, tenants: filteredSorted, isCommercial });
   }
 
   return (
@@ -318,7 +320,7 @@ export default function PropertyTenants() {
               <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Outstanding</div>
               <div className="truncate text-base font-extrabold text-red-600" title={formatNaira(property.stats.totalOwing)}>{formatNairaCompact(property.stats.totalOwing)}</div>
             </div>
-            <button onClick={handleExport} className="inline-flex items-center gap-2 rounded-xl bg-ink-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-ink-800">
+            <button onClick={() => setConfirmPrint(true)} className="inline-flex items-center gap-2 rounded-xl bg-ink-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-ink-800">
               <FaFileExport size={12} /> Export
             </button>
           </div>
@@ -495,6 +497,14 @@ export default function PropertyTenants() {
         danger
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
+      />
+      <ConfirmDialog
+        open={confirmPrint}
+        title={`Print ${occupantWord.toLowerCase()} list?`}
+        body={`This prints ${filteredSorted.length} ${filteredSorted.length === 1 ? occupantWord.toLowerCase() : occupantWordPlural.toLowerCase()} from ${property?.name || "this property"}, using your current search, filters and sort order. In the print window you can also choose "Save as PDF".`}
+        confirmLabel="Yes, Print"
+        onConfirm={handlePrintConfirmed}
+        onCancel={() => setConfirmPrint(false)}
       />
     </DashboardShell>
   );

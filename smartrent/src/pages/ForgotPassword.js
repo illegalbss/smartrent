@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { FaEnvelope, FaCheckCircle, FaArrowLeft } from "react-icons/fa";
 import AuthLayout from "../components/AuthLayout";
 import FormField from "../components/FormField";
+import { api } from "../api/client";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -10,7 +11,7 @@ export default function ForgotPassword() {
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     if (!/^\S+@\S+\.\S+$/.test(email)) {
@@ -18,10 +19,14 @@ export default function ForgotPassword() {
       return;
     }
     setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
+    try {
+      await api.post("/auth/forgot-password", { email: email.trim() });
       setSent(true);
-    }, 900);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (sent) {

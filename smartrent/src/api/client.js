@@ -15,8 +15,27 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+const NETWORK_ERROR_MESSAGE =
+  "Can't reach the RentaFlow server. Check your internet connection, or turn off any ad-blocker/VPN for this site, then try again.";
+
+// fetch() only rejects (with the browser's cryptic "Failed to fetch") when no
+// response arrived at all — a dropped connection, blocker, or DNS hiccup.
+// Retry once after a short pause, then surface a message people can act on.
+async function fetchWithRetry(url, options) {
+  try {
+    return await fetch(url, options);
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      return await fetch(url, options);
+    } catch {
+      throw new Error(NETWORK_ERROR_MESSAGE);
+    }
+  }
+}
+
 async function request(path, { method = "GET", body } = {}) {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetchWithRetry(`${BASE_URL}${path}`, {
     method,
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: body !== undefined ? JSON.stringify(body) : undefined,

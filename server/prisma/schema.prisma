@@ -311,7 +311,9 @@ model Tenant {
   roomId           String?      @map("room_id")
   occupantType     OccupantType @default(RESIDENTIAL_TENANT) @map("occupant_type")
   name             String
-  email            String       @unique
+  // Optional — some tenants don't use email. Without one they can't log in
+  // (no invite is issued) until staff add an email later.
+  email            String?      @unique
   phone            String?
   photoUrl         String?      @map("photo_url")
   passwordHash     String?      @map("password_hash")

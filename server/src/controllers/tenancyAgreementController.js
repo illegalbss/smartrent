@@ -44,7 +44,7 @@ function renderPdfBuffer(tenant) {
     doc.fontSize(13).text(`2. ${occupantWord} Details`, { underline: true });
     doc.fontSize(11).text(`Name: ${tenant.name}`);
     doc.text(`Phone Number: ${tenant.phone || "—"}`);
-    doc.text(`Email: ${tenant.email}`);
+    doc.text(`Email: ${tenant.email || "—"}`);
     if (isShopOwner) {
       doc.text(`Business Name: ${tenant.businessName || "—"}`);
       doc.text(`CAC Registration Number: ${tenant.cacNumber || "—"}`);

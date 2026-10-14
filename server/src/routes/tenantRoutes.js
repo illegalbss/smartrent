@@ -25,7 +25,7 @@ router.post(
   staff,
   [
     body("name").trim().notEmpty().withMessage("Tenant name is required."),
-    body("email").isEmail().withMessage("A valid email is required."),
+    body("email").optional({ nullable: true, checkFalsy: true }).isEmail().withMessage("Enter a valid email, or leave it blank."),
     body("roomId").optional().isString(),
     body("dateCommencement").optional({ checkFalsy: true }).isISO8601().withMessage("Invalid commencement date."),
     body("dateExpiration").optional({ checkFalsy: true }).isISO8601().withMessage("Invalid expiration date."),
@@ -39,6 +39,7 @@ router.put(
   staff,
   [
     body("name").optional().trim().notEmpty().withMessage("Tenant name cannot be empty."),
+    body("email").optional({ nullable: true, checkFalsy: true }).isEmail().withMessage("Enter a valid email, or leave it blank."),
     body("roomId").optional({ nullable: true }).isString(),
     body("dateCommencement").optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage("Invalid commencement date."),
     body("dateExpiration").optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage("Invalid expiration date."),
