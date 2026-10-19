@@ -37,9 +37,9 @@ function PropertySelectorCard({ property }) {
             { label: "Vacant", value: property.vacantRooms, color: "text-amber-600" },
             { label: "Tenants", value: property.tenantCount, color: "text-ink-900" },
           ].map((s) => (
-            <div key={s.label} className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">{s.label}</span>
-              <span className={`text-sm font-extrabold ${s.color}`}>{s.value}</span>
+            <div key={s.label} className="flex min-w-0 flex-col items-center rounded-xl bg-ink-50 px-2 py-2.5 text-center">
+              <span className={`text-xl font-extrabold leading-tight ${s.color}`}>{s.value}</span>
+              <span className="mt-0.5 text-[10px] font-semibold uppercase text-ink-500">{s.label}</span>
             </div>
           ))}
         </div>
