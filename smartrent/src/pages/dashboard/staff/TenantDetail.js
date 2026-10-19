@@ -17,7 +17,10 @@ import {
   FaHome,
   FaCalendarAlt,
   FaCheckCircle,
+  FaKey,
+  FaWhatsapp,
 } from "react-icons/fa";
+import { whatsappUrl, loginLinkMessage } from "../../../utils/whatsapp";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
 import { Card, Badge, Avatar, StatCard, formatDate, formatNaira, formatNairaCompact } from "../../../components/dashboard/UiKit";
 import { IncomeOverviewChart, MonthlyCollectionsChart, PaymentStatusChart } from "../../../components/dashboard/FinanceCharts";
@@ -103,13 +106,13 @@ function TenantEditForm({ tenant, onSubmit, onCancel, submitting, error }) {
     >
       <FormField label="Tenant's Name" name="name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
       <FormField
-        label="Email Address (optional — needed for login)"
+        label="Email Address (optional)"
         name="email"
         type="email"
         value={form.email}
         onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
       />
-      <FormField label="Phone Number" name="phone" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+      <FormField label="Phone Number (used to log in)" name="phone" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
 
       <div className="mb-4">
         <label className="mb-1.5 block text-sm font-semibold text-ink-700">Property</label>
@@ -853,6 +856,16 @@ export default function TenantDetail() {
     }
   }
 
+  async function handleGetLoginLink() {
+    setError("");
+    try {
+      const res = await tenantsApi.loginLink(id);
+      setInviteLink(`${window.location.origin}/accept-invite?token=${res.data.inviteToken}&role=tenant`);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function handleOffboard() {
     try {
       await tenantsApi.offboard(id);
@@ -941,9 +954,22 @@ export default function TenantDetail() {
       {actionMsg && <div className="mb-4 rounded-lg bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700">{actionMsg}</div>}
       {inviteLink && (
         <div className="mb-4 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-700">
-          <p className="font-medium">Email added. Share this activation link with the tenant so they can set up their login:</p>
+          <p className="font-medium">
+            Send this link to {tenant?.name || "the tenant"}. Opening it lets them set a (new) password, then they log in with their{" "}
+            {tenant?.phone ? "phone number" : "email"}. Any older link stops working.
+          </p>
           <div className="mt-2 break-all rounded-md bg-white px-3 py-2 font-mono text-xs text-ink-700">{inviteLink}</div>
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2 flex flex-wrap gap-2">
+            {tenant?.phone && (
+              <a
+                href={whatsappUrl(tenant.phone, loginLinkMessage(tenant.name, inviteLink))}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-1.5 text-xs font-bold text-white hover:opacity-90"
+              >
+                <FaWhatsapp size={13} /> Send via WhatsApp
+              </a>
+            )}
             <button onClick={() => navigator.clipboard?.writeText(inviteLink)} className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-600">
               Copy Link
             </button>
@@ -970,7 +996,7 @@ export default function TenantDetail() {
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-extrabold text-ink-900">{tenant.name}</h2>
                   <Badge tone={tenant.inviteAcceptedAt ? "green" : "amber"}>
-                    {tenant.inviteAcceptedAt ? "Active Tenant" : tenant.email ? "Invite Pending" : "No Login (no email)"}
+                    {tenant.inviteAcceptedAt ? "Active Tenant" : tenant.phone || tenant.email ? "Invite Pending" : "No Login (no phone)"}
                   </Badge>
                 </div>
                 <p className="text-xs text-ink-400">
@@ -1016,6 +1042,13 @@ export default function TenantDetail() {
             </button>
             <button onClick={() => setEditModal(true)} className="inline-flex items-center gap-1.5 rounded-xl border border-ink-200 bg-white px-3.5 py-2 text-xs font-bold text-ink-700 hover:border-brand-300 hover:text-brand-600">
               <FaEdit size={12} /> Edit Tenant
+            </button>
+            <button
+              onClick={handleGetLoginLink}
+              title="New link to set up the tenant's login, or to reset a forgotten password"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-ink-200 bg-white px-3.5 py-2 text-xs font-bold text-ink-700 hover:border-brand-300 hover:text-brand-600"
+            >
+              <FaKey size={12} /> Get Login Link
             </button>
             {tenant.room && (
               <button onClick={() => setOffboardConfirm(true)} className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-white px-3.5 py-2 text-xs font-bold text-amber-700 hover:bg-amber-50">

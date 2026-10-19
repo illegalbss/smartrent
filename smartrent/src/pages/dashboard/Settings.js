@@ -31,7 +31,8 @@ function Banner({ message }) {
 export default function Settings({ navItems }) {
   const { user, updateProfile, changePassword } = useAuth();
 
-  const [profile, setProfile] = useState({ fullName: user.fullName, phone: user.phone });
+  const isTenant = user.role === "tenant";
+  const [profile, setProfile] = useState({ fullName: user.fullName, phone: user.phone || "", email: user.email || "" });
   const [profileMsg, setProfileMsg] = useState("");
 
   const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
@@ -50,7 +51,11 @@ export default function Settings({ navItems }) {
   async function handleProfileSubmit(e) {
     e.preventDefault();
     setProfileError("");
-    const result = await updateProfile({ fullName: profile.fullName.trim(), phone: profile.phone.trim() });
+    const result = await updateProfile({
+      fullName: profile.fullName.trim(),
+      phone: profile.phone.trim(),
+      ...(isTenant && profile.email.trim() && { email: profile.email.trim() }),
+    });
     if (!result.ok) {
       setProfileError(result.error);
       return;
@@ -104,7 +109,26 @@ export default function Settings({ navItems }) {
               onChange={(e) => setProfile((p) => ({ ...p, fullName: e.target.value }))}
               required
             />
-            <FormField label="Email Address" name="email" icon={FaEnvelope} value={user.email} onChange={() => {}} disabled />
+            {isTenant ? (
+              <>
+                {!user.email && (
+                  <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                    Add your email so you can reset your password yourself if you ever forget it.
+                  </p>
+                )}
+                <FormField
+                  label="Email Address"
+                  name="email"
+                  type="email"
+                  icon={FaEnvelope}
+                  placeholder="you@example.com"
+                  value={profile.email}
+                  onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))}
+                />
+              </>
+            ) : (
+              <FormField label="Email Address" name="email" icon={FaEnvelope} value={user.email || ""} onChange={() => {}} disabled />
+            )}
             <FormField
               label="Phone Number"
               name="phone"

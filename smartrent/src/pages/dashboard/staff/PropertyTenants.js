@@ -10,6 +10,7 @@ import {
   FaBuilding,
   FaUsers,
   FaDoorOpen,
+  FaWhatsapp,
 } from "react-icons/fa";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
 import { Badge, EmptyState, Avatar, ConfirmMenu, formatDate, formatNaira, formatNairaCompact } from "../../../components/dashboard/UiKit";
@@ -21,6 +22,7 @@ import { STAFF_NAV } from "../../../config/navigation";
 import { propertiesApi } from "../../../api/properties";
 import { tenantsApi } from "../../../api/tenants";
 import { printTenantList } from "../../../utils/tenantListReport";
+import { whatsappUrl, loginLinkMessage } from "../../../utils/whatsapp";
 
 const PAYMENT_TONE = { PAID: "green", PARTIAL: "amber", OWING: "red", NO_PAYMENTS: "ink" };
 const PAYMENT_LABEL = { PAID: "Paid", PARTIAL: "Partial", OWING: "Outstanding", NO_PAYMENTS: "No Payments" };
@@ -61,7 +63,7 @@ function RegisterTenantForm({ property, rooms, onSubmit, onCancel, submitting, e
     nextOfKinPhone: "",
   });
   const [inviteLink, setInviteLink] = useState("");
-  const [registeredWithoutEmail, setRegisteredWithoutEmail] = useState(false);
+  const [registeredWithoutContact, setRegisteredWithoutContact] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -81,16 +83,17 @@ function RegisterTenantForm({ property, rooms, onSubmit, onCancel, submitting, e
     if (result?.inviteToken) {
       setInviteLink(`${window.location.origin}/accept-invite?token=${result.inviteToken}&role=tenant`);
     } else if (result) {
-      setRegisteredWithoutEmail(true);
+      setRegisteredWithoutContact(true);
     }
   }
 
-  if (registeredWithoutEmail) {
+  if (registeredWithoutContact) {
     return (
       <div>
         <p className="text-sm text-ink-600">
-          {occupantWord} registered without an email. You can record their payments and documents as normal. They won't be
-          able to log in until you add an email from their profile (Edit), which gives you an activation link to share.
+          {occupantWord} registered without a phone number or email. You can record their payments and documents as normal.
+          They won't be able to log in until you add their phone number from their profile (Edit), which gives you an
+          activation link to share.
         </p>
         <button onClick={onCancel} className="mt-4 w-full rounded-xl bg-brand-500 py-2.5 text-sm font-bold text-white hover:bg-brand-600">
           Done
@@ -102,11 +105,24 @@ function RegisterTenantForm({ property, rooms, onSubmit, onCancel, submitting, e
   if (inviteLink) {
     return (
       <div>
-        <p className="text-sm text-ink-600">{occupantWord} registered. Share this activation link with them to set up their login:</p>
+        <p className="text-sm text-ink-600">
+          {occupantWord} registered. Send them this activation link to set their password — they'll then log in with their{" "}
+          {form.phone ? "phone number" : "email"}:
+        </p>
         <div className="mt-3 break-all rounded-lg bg-ink-50 px-3.5 py-2.5 text-xs font-mono text-ink-700">{inviteLink}</div>
+        {form.phone && (
+          <a
+            href={whatsappUrl(form.phone, loginLinkMessage(form.name, inviteLink))}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] py-2.5 text-sm font-bold text-white hover:opacity-90"
+          >
+            <FaWhatsapp size={16} /> Send via WhatsApp
+          </a>
+        )}
         <button
           onClick={() => navigator.clipboard?.writeText(inviteLink)}
-          className="mt-3 w-full rounded-xl border border-ink-200 py-2.5 text-sm font-bold text-ink-600 hover:bg-ink-50"
+          className="mt-2.5 w-full rounded-xl border border-ink-200 py-2.5 text-sm font-bold text-ink-600 hover:bg-ink-50"
         >
           Copy Link
         </button>
@@ -121,8 +137,15 @@ function RegisterTenantForm({ property, rooms, onSubmit, onCancel, submitting, e
     <form onSubmit={handleSubmit}>
       <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-brand-600">Registering into {property.name}</p>
       <FormField label={`${occupantWord}'s Name`} name="name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
-      <FormField label="Email Address (optional — needed for login)" name="email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
-      <FormField label="Phone Number" name="phone" type="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+      <FormField
+        label="Phone Number (used to log in)"
+        name="phone"
+        type="tel"
+        placeholder="e.g. 08031234567"
+        value={form.phone}
+        onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+      />
+      <FormField label="Email Address (optional)" name="email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
 
       {isCommercial && (
         <>

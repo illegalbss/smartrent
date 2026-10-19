@@ -106,7 +106,10 @@ export function AuthProvider({ children }) {
 
   async function updateProfile(updates) {
     try {
-      const body = user.role === "landlord" ? { name: updates.fullName, phone: updates.phone } : { phone: updates.phone };
+      const body =
+        user.role === "landlord"
+          ? { name: updates.fullName, phone: updates.phone }
+          : { phone: updates.phone, ...(user.role === "tenant" && updates.email && { email: updates.email }) };
       const { data } = await api.put(PROFILE_PATH[user.role], body);
       setUser(normalize(data, user.role));
       return { ok: true };

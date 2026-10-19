@@ -9,6 +9,7 @@ export const tenantsApi = {
   register: (data) => api.post("/tenants", data),
   update: (id, data) => api.put(`/tenants/${id}`, data),
   offboard: (id) => api.post(`/tenants/${id}/offboard`, {}),
+  loginLink: (id) => api.post(`/tenants/${id}/login-link`, {}),
   remove: (id) => api.delete(`/tenants/${id}`),
   uploadPhoto: (id, file) => uploadFile(`/tenants/${id}/photo`, file),
   photoUrl: (id) => `/tenants/${id}/photo`,

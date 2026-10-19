@@ -27,14 +27,20 @@ router.post(
   "/auth/tenant/login",
   authLimiter,
   [
-    body("email").isEmail().withMessage("A valid email is required."),
+    // Holds a phone number or an email — see tenantAuthController.login.
+    body("email").trim().notEmpty().withMessage("Enter your phone number or email."),
     body("password").notEmpty().withMessage("Password is required."),
   ],
   login
 );
 
 router.get("/tenant/profile", requireAuth("tenant"), getProfile);
-router.put("/tenant/profile", requireAuth("tenant"), updateProfile);
+router.put(
+  "/tenant/profile",
+  requireAuth("tenant"),
+  [body("email").optional({ checkFalsy: true }).isEmail().withMessage("Enter a valid email address.")],
+  updateProfile
+);
 router.get("/tenant/payments", requireAuth("tenant"), getPayments);
 router.post(
   "/auth/tenant/change-password",

@@ -25,6 +25,23 @@ async function getOrCreatePlanCode(amountNaira, rentFrequency) {
   return result.data.plan_code;
 }
 
+// Paystack requires a customer email, but many tenants only have a phone
+// number. Those get a stand-in address that encodes their tenant id, so the
+// subscription webhook can still map the customer back to the tenant.
+const PAYSTACK_PLACEHOLDER_DOMAIN = "tenants.rentaflow.app";
+
+function paystackEmailFor(tenant) {
+  return tenant.email || `tenant-${tenant.id}@${PAYSTACK_PLACEHOLDER_DOMAIN}`;
+}
+
+async function findTenantByPaystackEmail(rawEmail) {
+  const email = rawEmail?.toLowerCase();
+  if (!email) return null;
+  const placeholder = email.match(new RegExp(`^tenant-([a-z0-9]+)@${PAYSTACK_PLACEHOLDER_DOMAIN.replace(/\./g, "\\.")}$`));
+  if (placeholder) return prisma.tenant.findUnique({ where: { id: placeholder[1] } });
+  return prisma.tenant.findUnique({ where: { email } });
+}
+
 // Tenant starts an online rent payment. We compute the amount from the
 // tenant's own room server-side — the client never gets to set the amount.
 // A PaystackTransaction row remembers which tenant/room this reference
@@ -89,7 +106,7 @@ async function initializePayment(req, res, next) {
       data: {
         reference,
         amount: amountKobo,
-        email: tenant.email,
+        email: paystackEmailFor(tenant),
         publicKey: process.env.PAYSTACK_PUBLIC_KEY,
         ...splitParams,
         ...(planCode && { plan: planCode }),
@@ -213,7 +230,7 @@ async function handleSubscriptionEvent(event) {
   if (!data) return;
 
   if (event.event === "subscription.create") {
-    const tenant = await prisma.tenant.findUnique({ where: { email: data.customer?.email?.toLowerCase() } });
+    const tenant = await findTenantByPaystackEmail(data.customer?.email);
     if (!tenant) return;
     await prisma.tenantSubscription.upsert({
       where: { tenantId: tenant.id },

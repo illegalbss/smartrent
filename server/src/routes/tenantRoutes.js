@@ -7,6 +7,7 @@ const {
   listTenants,
   getTenant,
   updateTenant,
+  issueLoginLink,
   offboardTenant,
   deleteTenant,
   uploadPhoto,
@@ -48,6 +49,7 @@ router.put(
   updateTenant
 );
 
+router.post("/tenants/:tenantId/login-link", staff, issueLoginLink);
 router.post("/tenants/:tenantId/offboard", staff, offboardTenant);
 router.delete("/tenants/:tenantId", staff, deleteTenant);
 

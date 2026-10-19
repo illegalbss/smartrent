@@ -3,6 +3,7 @@ const { validationResult } = require("express-validator");
 const prisma = require("../config/prisma");
 const { signToken } = require("../utils/jwt");
 const { computeTenantPaymentStatus } = require("../services/tenantPaymentStatus");
+const { normalizePhone, looksLikeEmail } = require("../utils/phone");
 
 function sanitize(tenant) {
   const { passwordHash, inviteToken, ...rest } = tenant;
@@ -42,15 +43,36 @@ async function login(req, res, next) {
       return res.status(400).json({ success: false, error: errors.array()[0].msg });
     }
 
-    const { email, password } = req.body;
-    const tenant = await prisma.tenant.findUnique({ where: { email: email.toLowerCase() } });
-    if (!tenant || !tenant.passwordHash) {
-      return res.status(401).json({ success: false, error: "Invalid email or password." });
-    }
+    // The "email" field carries whatever the tenant typed: an email or a
+    // phone number (many tenants don't have email).
+    const { email: identifier, password } = req.body;
+    const invalid = () =>
+      res.status(401).json({ success: false, error: "Invalid phone number/email or password." });
 
-    const valid = await bcrypt.compare(password, tenant.passwordHash);
-    if (!valid) {
-      return res.status(401).json({ success: false, error: "Invalid email or password." });
+    let tenant;
+    if (looksLikeEmail(identifier)) {
+      tenant = await prisma.tenant.findUnique({ where: { email: identifier.trim().toLowerCase() } });
+      if (!tenant?.passwordHash || !(await bcrypt.compare(password, tenant.passwordHash))) return invalid();
+    } else {
+      const phone = normalizePhone(identifier);
+      if (!phone) return invalid();
+      // Phones are stored as typed, so narrow by the last digits in the
+      // database, then compare normalized forms here.
+      const candidates = await prisma.tenant.findMany({
+        where: { passwordHash: { not: null }, phone: { contains: phone.slice(-4) } },
+      });
+      const matches = [];
+      for (const c of candidates) {
+        if (normalizePhone(c.phone) === phone && (await bcrypt.compare(password, c.passwordHash))) matches.push(c);
+      }
+      if (matches.length === 0) return invalid();
+      if (matches.length > 1) {
+        return res.status(409).json({
+          success: false,
+          error: "This phone number is linked to more than one tenancy. Log in with your email, or ask your landlord for help.",
+        });
+      }
+      tenant = matches[0];
     }
 
     const authToken = signToken({ id: tenant.id, role: "tenant", landlordId: tenant.landlordId });
@@ -84,14 +106,30 @@ async function getProfile(req, res, next) {
   }
 }
 
-// Tenants can only update their own contact number — name, room, and lease
-// dates are staff-managed to keep the tenancy record authoritative.
+// Tenants can only update their own phone and email — name, room, and lease
+// dates are staff-managed to keep the tenancy record authoritative. Adding
+// an email lets them use Forgot Password instead of asking the landlord.
 async function updateProfile(req, res, next) {
   try {
-    const { phone } = req.body;
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, error: errors.array()[0].msg });
+    }
+
+    const { phone, email } = req.body;
+    let normalizedEmail;
+    if (email) {
+      normalizedEmail = email.trim().toLowerCase();
+      const taken = await prisma.tenant.findFirst({ where: { email: normalizedEmail, id: { not: req.auth.id } } });
+      if (taken) return res.status(409).json({ success: false, error: "This email is already used by another account." });
+    }
+
     const updated = await prisma.tenant.update({
       where: { id: req.auth.id },
-      data: { ...(phone !== undefined && { phone }) },
+      data: {
+        ...(phone !== undefined && { phone: normalizePhone(phone) }),
+        ...(normalizedEmail && { email: normalizedEmail }),
+      },
     });
     res.json({ success: true, data: sanitize(updated) });
   } catch (err) {

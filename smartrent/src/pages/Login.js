@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { FaEnvelope, FaLock, FaUser, FaBuilding, FaUserTie } from "react-icons/fa";
+import { FaEnvelope, FaLock, FaUser, FaBuilding, FaUserTie, FaPhone } from "react-icons/fa";
 import AuthLayout from "../components/AuthLayout";
 import FormField from "../components/FormField";
 import RoleSelector from "../components/RoleSelector";
@@ -22,6 +22,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const isTenant = role === "tenant";
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -48,11 +49,11 @@ export default function Login() {
         <RoleSelector roles={ROLES} value={role} onChange={setRole} label="Login as" />
 
         <FormField
-          label="Email Address"
+          label={isTenant ? "Phone Number or Email" : "Email Address"}
           name="email"
-          icon={FaEnvelope}
-          type="email"
-          placeholder="Enter your email"
+          icon={isTenant ? FaPhone : FaEnvelope}
+          type={isTenant ? "text" : "email"}
+          placeholder={isTenant ? "e.g. 08031234567" : "Enter your email"}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -91,6 +92,7 @@ export default function Login() {
       </p>
       <p className="mt-2 text-center text-xs text-ink-400">
         Secretaries and Tenants: use the invite link your landlord sent you to set up your account.
+        {isTenant && " Forgot your password? Ask your landlord for a new login link."}
       </p>
       <div className="mt-6 flex justify-center">
         <DownloadAppButton className="flex items-center gap-2 text-sm font-semibold text-brand-600 hover:text-brand-700" />

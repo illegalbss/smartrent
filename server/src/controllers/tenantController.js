@@ -4,6 +4,7 @@ const prisma = require("../config/prisma");
 const storage = require("../services/storage");
 const { computeTenantPaymentStatus } = require("../services/tenantPaymentStatus");
 const { summarizePayments } = require("../services/financeSummary");
+const { normalizePhone } = require("../utils/phone");
 
 function sanitize(tenant) {
   const { passwordHash, inviteToken, photoUrl, ...rest } = tenant;
@@ -98,9 +99,10 @@ async function registerTenant(req, res, next) {
       resolvedOccupantType = room.property.propertyType === "COMMERCIAL" ? "SHOP_OWNER" : "RESIDENTIAL_TENANT";
     }
 
-    // Login is by email, so a tenant registered without one gets no invite —
-    // it's issued later if staff add an email (see updateTenant).
-    const inviteToken = normalizedEmail ? crypto.randomBytes(24).toString("hex") : null;
+    // Tenants log in with their phone number or email, so an invite needs at
+    // least one of them; otherwise it's issued once staff add one (updateTenant).
+    const normalizedPhone = normalizePhone(phone);
+    const inviteToken = normalizedEmail || normalizedPhone ? crypto.randomBytes(24).toString("hex") : null;
     const tenant = await prisma.tenant.create({
       data: {
         landlordId: req.landlordId,
@@ -108,7 +110,7 @@ async function registerTenant(req, res, next) {
         occupantType: resolvedOccupantType,
         name,
         email: normalizedEmail,
-        phone,
+        phone: normalizedPhone,
         dateCommencement: dateCommencement ? new Date(dateCommencement) : null,
         dateExpiration: dateExpiration ? new Date(dateExpiration) : null,
         dateRenewal: dateRenewal ? new Date(dateRenewal) : null,
@@ -127,7 +129,7 @@ async function registerTenant(req, res, next) {
       await prisma.room.update({ where: { id: room.id }, data: { status: "OCCUPIED" } });
     }
 
-    // In production this token is dispatched via email/SMS, not returned in the response.
+    // Staff share the activation link themselves (copy / WhatsApp).
     res.status(201).json({ success: true, data: { ...sanitize(tenant), inviteToken } });
   } catch (err) {
     next(err);
@@ -231,9 +233,7 @@ async function updateTenant(req, res, next) {
     } = req.body;
 
     // Email can be added/changed later (e.g. a tenant registered without one).
-    // Adding one to a tenant who has never activated issues a fresh invite.
     let emailUpdate;
-    let newInviteToken;
     if (email !== undefined) {
       const normalizedEmail = email ? email.trim().toLowerCase() : null;
       if (normalizedEmail !== tenant.email) {
@@ -242,11 +242,15 @@ async function updateTenant(req, res, next) {
           if (taken) return res.status(409).json({ success: false, error: "A tenant with this email already exists." });
         }
         emailUpdate = normalizedEmail;
-        if (normalizedEmail && !tenant.passwordHash && !tenant.inviteToken) {
-          newInviteToken = crypto.randomBytes(24).toString("hex");
-        }
       }
     }
+    const phoneUpdate = phone !== undefined ? normalizePhone(phone) : undefined;
+
+    // A tenant who couldn't get an invite (no phone or email) gets one as
+    // soon as either is added.
+    const hasLoginId = (emailUpdate !== undefined ? emailUpdate : tenant.email) || (phoneUpdate !== undefined ? phoneUpdate : tenant.phone);
+    const newInviteToken =
+      hasLoginId && !tenant.passwordHash && !tenant.inviteToken ? crypto.randomBytes(24).toString("hex") : undefined;
 
     // Handle room reassignment: free the old room, occupy the new one, and
     // re-derive occupantType from the new room's property (a tenant moving
@@ -276,7 +280,7 @@ async function updateTenant(req, res, next) {
         ...(name !== undefined && { name }),
         ...(emailUpdate !== undefined && { email: emailUpdate }),
         ...(newInviteToken && { inviteToken: newInviteToken }),
-        ...(phone !== undefined && { phone }),
+        ...(phoneUpdate !== undefined && { phone: phoneUpdate }),
         ...(dateCommencement !== undefined && { dateCommencement: dateCommencement ? new Date(dateCommencement) : null }),
         ...(dateExpiration !== undefined && { dateExpiration: dateExpiration ? new Date(dateExpiration) : null }),
         ...(dateRenewal !== undefined && { dateRenewal: dateRenewal ? new Date(dateRenewal) : null }),
@@ -290,6 +294,25 @@ async function updateTenant(req, res, next) {
       },
     });
     res.json({ success: true, data: { ...sanitize(updated), ...(newInviteToken && { inviteToken: newInviteToken }) } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Staff-only: a fresh activation link for this tenant. Used both to (re)send
+// a first-time invite and as the password reset for tenants without email,
+// since accepting the link sets a new password. Any older link stops working.
+async function issueLoginLink(req, res, next) {
+  try {
+    const tenant = await prisma.tenant.findFirst({ where: { id: req.params.tenantId, landlordId: req.landlordId } });
+    if (!tenant) return res.status(404).json({ success: false, error: "Tenant not found." });
+    if (!tenant.phone && !tenant.email) {
+      return res.status(409).json({ success: false, error: "Add the tenant's phone number first — they log in with it." });
+    }
+
+    const inviteToken = crypto.randomBytes(24).toString("hex");
+    await prisma.tenant.update({ where: { id: tenant.id }, data: { inviteToken } });
+    res.json({ success: true, data: { inviteToken } });
   } catch (err) {
     next(err);
   }
@@ -375,6 +398,7 @@ module.exports = {
   listTenants,
   getTenant,
   updateTenant,
+  issueLoginLink,
   offboardTenant,
   deleteTenant,
   uploadPhoto,

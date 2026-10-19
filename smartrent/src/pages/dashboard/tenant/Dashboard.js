@@ -10,6 +10,7 @@ import {
   FaUniversity,
   FaMobileAlt,
   FaExclamationTriangle,
+  FaEnvelope,
 } from "react-icons/fa";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
 import { Card, StatCard, formatDate, formatNaira } from "../../../components/dashboard/UiKit";
@@ -83,6 +84,23 @@ export default function TenantDashboard() {
   return (
     <DashboardShell navItems={TENANT_NAV} title={`Welcome, ${user.fullName?.split(" ")[0]}`} subtitle="Your tenancy at a glance">
       {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</div>}
+      {!user.email && (
+        <div className="mb-4 flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between">
+          <span className="flex items-start gap-2">
+            <FaEnvelope size={14} className="mt-0.5 shrink-0" />
+            <span>
+              <span className="font-semibold">Add an email to your account.</span> If you ever forget your password, we'll send you a
+              reset link there — without it, you'll have to ask your landlord for a new login link.
+            </span>
+          </span>
+          <Link
+            to="/dashboard/tenant/settings"
+            className="shrink-0 rounded-lg bg-amber-500 px-3.5 py-2 text-center text-xs font-bold text-white hover:bg-amber-600"
+          >
+            Add Email
+          </Link>
+        </div>
+      )}
       {payMessage && (
         <div className="mb-4 flex items-center gap-2 rounded-lg bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700">
           <FaCheckCircle size={13} /> {payMessage}
