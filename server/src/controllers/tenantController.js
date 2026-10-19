@@ -318,6 +318,44 @@ async function issueLoginLink(req, res, next) {
   }
 }
 
+// Staff-only: activation links for every tenant (optionally in one property)
+// who hasn't set up their login yet, so they can be sent out in one sitting.
+// Tenants who already have a link keep it — links sent earlier still work.
+async function bulkLoginLinks(req, res, next) {
+  try {
+    const { propertyId } = req.body || {};
+    const tenants = await prisma.tenant.findMany({
+      where: {
+        landlordId: req.landlordId,
+        passwordHash: null,
+        ...(propertyId && { room: { propertyId } }),
+      },
+      include: { room: { select: { roomNumber: true } } },
+      orderBy: { name: "asc" },
+    });
+
+    const results = [];
+    for (const t of tenants) {
+      let inviteToken = t.inviteToken;
+      if (!inviteToken && (t.phone || t.email)) {
+        inviteToken = crypto.randomBytes(24).toString("hex");
+        await prisma.tenant.update({ where: { id: t.id }, data: { inviteToken } });
+      }
+      results.push({
+        id: t.id,
+        name: t.name,
+        phone: t.phone,
+        email: t.email,
+        roomNumber: t.room?.roomNumber || null,
+        inviteToken: inviteToken || null,
+      });
+    }
+    res.json({ success: true, data: results });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function offboardTenant(req, res, next) {
   try {
     const tenant = await prisma.tenant.findFirst({ where: { id: req.params.tenantId, landlordId: req.landlordId } });
@@ -399,6 +437,7 @@ module.exports = {
   getTenant,
   updateTenant,
   issueLoginLink,
+  bulkLoginLinks,
   offboardTenant,
   deleteTenant,
   uploadPhoto,

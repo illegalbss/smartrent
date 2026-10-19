@@ -8,6 +8,7 @@ const {
   getTenant,
   updateTenant,
   issueLoginLink,
+  bulkLoginLinks,
   offboardTenant,
   deleteTenant,
   uploadPhoto,
@@ -20,6 +21,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 *
 
 router.get("/tenants", staff, listTenants);
 router.get("/tenants/:tenantId", staff, getTenant);
+router.post("/tenants/login-links", staff, bulkLoginLinks);
 
 router.post(
   "/tenants",

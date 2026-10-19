@@ -23,6 +23,7 @@ import { propertiesApi } from "../../../api/properties";
 import { tenantsApi } from "../../../api/tenants";
 import { printTenantList } from "../../../utils/tenantListReport";
 import { whatsappUrl, loginLinkMessage } from "../../../utils/whatsapp";
+import LoginLinksList from "../../../components/dashboard/LoginLinksList";
 
 const PAYMENT_TONE = { PAID: "green", PARTIAL: "amber", OWING: "red", NO_PAYMENTS: "ink" };
 const PAYMENT_LABEL = { PAID: "Paid", PARTIAL: "Partial", OWING: "Outstanding", NO_PAYMENTS: "No Payments" };
@@ -210,6 +211,7 @@ export default function PropertyTenants() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [menuOpenId, setMenuOpenId] = useState(null);
   const [confirmPrint, setConfirmPrint] = useState(false);
+  const [showLoginLinks, setShowLoginLinks] = useState(false);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -334,7 +336,7 @@ export default function PropertyTenants() {
             </div>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
             <div className="min-w-0">
               <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Collected This Month</div>
               <div className="truncate text-base font-extrabold text-green-600" title={formatNaira(monthlyIncome)}>{formatNairaCompact(monthlyIncome)}</div>
@@ -343,6 +345,12 @@ export default function PropertyTenants() {
               <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Outstanding</div>
               <div className="truncate text-base font-extrabold text-red-600" title={formatNaira(property.stats.totalOwing)}>{formatNairaCompact(property.stats.totalOwing)}</div>
             </div>
+            <button
+              onClick={() => setShowLoginLinks(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90"
+            >
+              <FaWhatsapp size={14} /> Send Login Links
+            </button>
             <button onClick={() => setConfirmPrint(true)} className="inline-flex items-center gap-2 rounded-xl bg-ink-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-ink-800">
               <FaFileExport size={12} /> Export
             </button>
@@ -521,6 +529,9 @@ export default function PropertyTenants() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
       />
+      <Modal open={showLoginLinks} title={`Send Login Links — ${property?.name || ""}`} onClose={() => setShowLoginLinks(false)}>
+        {showLoginLinks && <LoginLinksList propertyId={propertyId} roomWord={isCommercial ? "Unit" : "Room"} />}
+      </Modal>
       <ConfirmDialog
         open={confirmPrint}
         title={`Print ${occupantWord.toLowerCase()} list?`}
