@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { FaUser, FaEnvelope, FaPhone, FaLock, FaCheckCircle } from "react-icons/fa";
+import { FaUser, FaEnvelope, FaPhone, FaLock, FaCheckCircle, FaSearch, FaSyncAlt } from "react-icons/fa";
 import DashboardShell from "../../components/dashboard/DashboardShell";
 import FormField from "../../components/FormField";
 import Toggle from "../../components/Toggle";
 import { useAuth } from "../../context/AuthContext";
+import { isUpdateAvailable, refreshApp } from "../../utils/appUpdate";
 
 function loadPrefs(userId) {
   const raw = localStorage.getItem(`smartrent_prefs_${userId}`);
@@ -62,6 +63,16 @@ export default function Settings({ navItems }) {
     }
     setProfileMsg("Profile updated successfully.");
     setTimeout(() => setProfileMsg(""), 3000);
+  }
+
+  const [updateStatus, setUpdateStatus] = useState("");
+
+  async function handleCheckForUpdates() {
+    setUpdateStatus("Checking…");
+    const available = await isUpdateAvailable();
+    if (available) setUpdateStatus("A new version is available — tap Refresh App.");
+    else if (available === false) setUpdateStatus("You're on the latest version.");
+    else setUpdateStatus("Couldn't check right now. Refresh App will still load the latest version.");
   }
 
   async function handlePasswordSubmit(e) {
@@ -184,6 +195,27 @@ export default function Settings({ navItems }) {
               Update Password
             </button>
           </form>
+        </Card>
+
+        <Card title="App Updates">
+          <p className="text-sm text-ink-500">
+            If something looks out of date, refresh to load the newest version of RentaFlow. You'll stay logged in.
+          </p>
+          {updateStatus && <p className="mt-3 text-sm font-medium text-brand-700">{updateStatus}</p>}
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              onClick={handleCheckForUpdates}
+              className="inline-flex items-center gap-2 rounded-xl border border-ink-200 px-4 py-2.5 text-sm font-bold text-ink-700 hover:bg-ink-50"
+            >
+              <FaSearch size={12} /> Check for Updates
+            </button>
+            <button
+              onClick={refreshApp}
+              className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white shadow-card hover:bg-brand-600"
+            >
+              <FaSyncAlt size={12} /> Refresh App
+            </button>
+          </div>
         </Card>
 
         <Card title="Notification Preferences">

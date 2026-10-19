@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import InstallPrompt from "./components/InstallPrompt";
+import UpdateBanner from "./components/UpdateBanner";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -229,6 +230,7 @@ export default function App() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       <InstallPrompt />
+      <UpdateBanner />
     </AuthProvider>
   );
 }

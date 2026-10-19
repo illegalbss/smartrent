@@ -2,7 +2,7 @@
 
 // Bump this whenever the caching strategy below changes so old caches get
 // cleared out on activate.
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const SHELL_CACHE = `rentaflow-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `rentaflow-runtime-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
@@ -59,6 +59,10 @@ self.addEventListener('fetch', (event) => {
 
   if (isApiRequest(url)) {
     return; // let the browser handle API calls normally — no caching, ever
+  }
+
+  if (url.pathname === '/asset-manifest.json') {
+    return; // the app's update check reads this — it must always be the live copy
   }
 
   if (request.mode === 'navigate') {
