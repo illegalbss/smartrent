@@ -64,7 +64,7 @@ export function Badge({ tone = "ink", children }) {
     brand: "bg-brand-100 text-brand-700",
   };
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${tones[tone]}`}>
+    <span className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold ${tones[tone]}`}>
       {children}
     </span>
   );

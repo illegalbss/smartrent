@@ -140,7 +140,7 @@ function PropertyEditForm({ initial, onSubmit, onCancel, submitting, error }) {
 }
 
 const TENANT_STATUS_TONE = { PAID: "green", PARTIAL: "amber", OWING: "red", NO_PAYMENTS: "ink" };
-const TENANT_STATUS_LABEL = { PAID: "Paid", PARTIAL: "Partial", OWING: "Owing", NO_PAYMENTS: "No payments yet" };
+const TENANT_STATUS_LABEL = { PAID: "Paid", PARTIAL: "Partial", OWING: "Owing", NO_PAYMENTS: "No payments" };
 
 export default function PropertyDetail() {
   const { id } = useParams();
@@ -416,44 +416,48 @@ export default function PropertyDetail() {
               <p className="text-sm text-ink-400">No {occupantWord.toLowerCase()}s assigned to this property yet.</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] text-left text-sm">
-                  <thead className="border-b border-ink-100 text-xs font-bold uppercase text-ink-400">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead className="border-b border-ink-100 text-[11px] font-bold uppercase tracking-wide text-ink-400">
                     <tr>
-                      <th className="py-2 pr-4">{occupantWord}</th>
-                      <th className="py-2 pr-4">{roomWord}</th>
-                      <th className="py-2 pr-4">Phone</th>
-                      <th className="py-2 pr-4">Status</th>
-                      <th className="py-2 pr-4">Next Due Date</th>
-                      <th className="py-2 pr-4">Outstanding</th>
-                      <th className="py-2 pr-4"></th>
+                      <th className="whitespace-nowrap py-2.5 pr-4">{occupantWord}</th>
+                      <th className="whitespace-nowrap py-2.5 pr-4">{roomWord}</th>
+                      <th className="whitespace-nowrap py-2.5 pr-4">Status</th>
+                      <th className="whitespace-nowrap py-2.5 pr-4">Next Due</th>
+                      <th className="whitespace-nowrap py-2.5 pr-4 text-right">Outstanding</th>
+                      <th className="py-2.5"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-ink-100">
                     {tenants.map((t) => (
-                      <tr key={t.id}>
-                        <td className="py-2.5 pr-4">
-                          <div className="flex items-center gap-2.5">
-                            <Avatar entity={t} photoSrc={tenantsApi.photoUrl(t.id)} size="h-8 w-8 text-xs" />
-                            <span className="font-semibold text-ink-800">{t.name}</span>
+                      <tr key={t.id} className="align-middle hover:bg-ink-50/60">
+                        <td className="py-3 pr-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar entity={t} photoSrc={tenantsApi.photoUrl(t.id)} size="h-9 w-9 text-xs" />
+                            <div className="min-w-0">
+                              <div className="max-w-[240px] truncate font-semibold text-ink-800" title={t.name}>{t.name}</div>
+                              <div className="text-xs text-ink-400">{t.phone || "No phone"}</div>
+                            </div>
                           </div>
                         </td>
-                        <td className="py-2.5 pr-4 text-ink-700">{t.room?.roomNumber || "—"}</td>
-                        <td className="py-2.5 pr-4 text-ink-700">{t.phone || "—"}</td>
-                        <td className="py-2.5 pr-4">
+                        <td className="whitespace-nowrap py-3 pr-4 font-medium text-ink-700">{t.room?.roomNumber || "—"}</td>
+                        <td className="py-3 pr-4">
                           <Badge tone={TENANT_STATUS_TONE[t.lastPaymentStatus || "NO_PAYMENTS"]}>
                             {TENANT_STATUS_LABEL[t.lastPaymentStatus || "NO_PAYMENTS"]}
                           </Badge>
                         </td>
-                        <td className="py-2.5 pr-4 text-ink-700">{t.nextDueDate ? formatDate(t.nextDueDate) : "—"}</td>
-                        <td className="py-2.5 pr-4">
+                        <td className="whitespace-nowrap py-3 pr-4">
+                          <div className="text-ink-700">{t.nextDueDate ? formatDate(t.nextDueDate) : "—"}</div>
+                          {t.isOverdue && <div className="text-xs font-semibold text-red-600">Overdue</div>}
+                        </td>
+                        <td className="whitespace-nowrap py-3 pr-4 text-right">
                           <span className={`font-semibold ${t.outstanding > 0 ? "text-red-600" : "text-green-600"}`}>{formatNaira(t.outstanding)}</span>
                         </td>
-                        <td className="py-2.5 pr-4 text-right">
+                        <td className="whitespace-nowrap py-3 text-right">
                           <Link
                             to={`/dashboard/staff/tenants/${t.id}`}
                             className="inline-block rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-bold text-ink-600 hover:border-brand-300 hover:text-brand-600"
                           >
-                            View Profile
+                            View
                           </Link>
                         </td>
                       </tr>
