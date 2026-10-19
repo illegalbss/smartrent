@@ -338,11 +338,11 @@ export default function PropertyTenants() {
 
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
             <div className="min-w-0">
-              <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Collected This Month</div>
+              <div className="whitespace-nowrap text-[10px] font-semibold uppercase text-ink-400">Collected This Month</div>
               <div className="truncate text-base font-extrabold text-green-600" title={formatNaira(monthlyIncome)}>{formatNairaCompact(monthlyIncome)}</div>
             </div>
             <div className="min-w-0">
-              <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Outstanding</div>
+              <div className="whitespace-nowrap text-[10px] font-semibold uppercase text-ink-400">Outstanding</div>
               <div className="truncate text-base font-extrabold text-red-600" title={formatNaira(property.stats.totalOwing)}>{formatNairaCompact(property.stats.totalOwing)}</div>
             </div>
             <button

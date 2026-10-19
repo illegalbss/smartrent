@@ -28,39 +28,34 @@ function PropertySelectorCard({ property }) {
           <h3 className="text-base font-bold text-ink-900">{property.name}</h3>
           <Badge tone="green">Active</Badge>
         </div>
-        <p className="mt-1 truncate text-xs text-ink-400">{property.address}</p>
+        <p className="mt-1 line-clamp-2 text-xs text-ink-400" title={property.address}>{property.address}</p>
 
-        <div className="mt-4 grid grid-cols-4 gap-2 text-center">
-          <div className="min-w-0">
-            <div className="text-sm font-extrabold text-ink-900">{property.totalRooms}</div>
-            <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Rooms</div>
-          </div>
-          <div className="min-w-0">
-            <div className="text-sm font-extrabold text-green-600">{property.occupiedRooms}</div>
-            <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Occupied</div>
-          </div>
-          <div className="min-w-0">
-            <div className="text-sm font-extrabold text-amber-600">{property.vacantRooms}</div>
-            <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Vacant</div>
-          </div>
-          <div className="min-w-0">
-            <div className="text-sm font-extrabold text-ink-900">{property.tenantCount}</div>
-            <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Tenants</div>
-          </div>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {[
+            { label: "Rooms", value: property.totalRooms, color: "text-ink-900" },
+            { label: "Occupied", value: property.occupiedRooms, color: "text-green-600" },
+            { label: "Vacant", value: property.vacantRooms, color: "text-amber-600" },
+            { label: "Tenants", value: property.tenantCount, color: "text-ink-900" },
+          ].map((s) => (
+            <div key={s.label} className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">{s.label}</span>
+              <span className={`text-sm font-extrabold ${s.color}`}>{s.value}</span>
+            </div>
+          ))}
         </div>
 
-        <div className="mt-4 flex items-center justify-between gap-3 border-t border-ink-100 pt-3.5 text-sm">
-          <div className="min-w-0">
-            <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Income Collected</div>
-            <div className="truncate font-bold text-green-600" title={formatNaira(property.monthlyIncome)}>
+        <div className="mt-4 space-y-1.5 border-t border-ink-100 pt-3.5 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">Income Collected</span>
+            <span className="font-bold text-green-600" title={formatNaira(property.monthlyIncome)}>
               {formatNairaCompact(property.monthlyIncome)}
-            </div>
+            </span>
           </div>
-          <div className="min-w-0 text-right">
-            <div className="truncate text-[10px] font-semibold uppercase text-ink-400">Outstanding</div>
-            <div className={`truncate font-bold ${property.outstanding > 0 ? "text-red-600" : "text-green-600"}`} title={formatNaira(property.outstanding)}>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">Outstanding</span>
+            <span className={`font-bold ${property.outstanding > 0 ? "text-red-600" : "text-green-600"}`} title={formatNaira(property.outstanding)}>
               {formatNairaCompact(property.outstanding)}
-            </div>
+            </span>
           </div>
         </div>
 
