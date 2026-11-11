@@ -1,8 +1,8 @@
 const prisma = require("../config/prisma");
 
+// req.ip already accounts for the trusted proxy (see app.js). Reading the
+// first X-Forwarded-For entry directly would log whatever the client claims.
 function extractIp(req) {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (forwarded) return forwarded.split(",")[0].trim();
   return req.ip || req.socket?.remoteAddress || null;
 }
 

@@ -20,11 +20,14 @@ const NETWORK_ERROR_MESSAGE =
 
 // fetch() only rejects (with the browser's cryptic "Failed to fetch") when no
 // response arrived at all — a dropped connection, blocker, or DNS hiccup.
-// Retry once after a short pause, then surface a message people can act on.
+// Reads are retried once after a short pause; writes are NOT, because the
+// server may have saved it before the connection dropped (e.g. a payment
+// recorded twice). Either way, surface a message people can act on.
 async function fetchWithRetry(url, options) {
   try {
     return await fetch(url, options);
   } catch {
+    if (options.method && options.method !== "GET") throw new Error(NETWORK_ERROR_MESSAGE);
     await new Promise((resolve) => setTimeout(resolve, 1500));
     try {
       return await fetch(url, options);
