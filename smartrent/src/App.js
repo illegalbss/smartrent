@@ -4,6 +4,9 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import InstallPrompt from "./components/InstallPrompt";
 import UpdateBanner from "./components/UpdateBanner";
 import Landing from "./pages/Landing";
+import Features from "./pages/Features";
+import Pricing from "./pages/Pricing";
+import PaymentSuccessPreview from "./pages/dev/PaymentSuccessPreview";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -41,6 +44,11 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/features" element={<Features />} />
+        <Route path="/pricing" element={<Pricing />} />
+        {process.env.NODE_ENV === "development" && (
+          <Route path="/dev/payment-success" element={<PaymentSuccessPreview />} />
+        )}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />

@@ -1,0 +1,11 @@
+/* Payment-success animation, exactly as specified, scoped to the overlay so
+   the generic class names (.ring, .tick, .pop) can't touch the rest of the app.
+   Only stroke, opacity and transform animate; reduced-motion users get the
+   finished state with no animation. */
+.rf-success .ring{stroke-dasharray:226;stroke-dashoffset:226;animation:draw .5s ease-out .1s forwards}
+.rf-success .tick{stroke-dasharray:50;stroke-dashoffset:50;animation:draw .35s ease-out .55s forwards}
+.rf-success .pop{opacity:0;transform:translateY(8px);animation:pop .4s ease-out .9s forwards}
+.rf-success .pop2{opacity:0;transform:translateY(8px);animation:pop .4s ease-out 1.1s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes pop{to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.rf-success .ring,.rf-success .tick{animation:none;stroke-dashoffset:0}.rf-success .pop,.rf-success .pop2{animation:none;opacity:1;transform:none}}

@@ -45,9 +45,19 @@ module.exports = {
           800: "#3b414d",
           900: "#1f2329",
         },
+        // Public marketing site palette (Home page, header, footer). Kept
+        // separate from ink/brand so dashboard screens are unaffected.
+        site: {
+          cream: "#FBF7F0",
+          text: "#2A1414",
+          muted: "#5E5249",
+          border: "#E8DFCF",
+          deep: "#2B0808",
+        },
       },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ["Fraunces", "Georgia", "serif"],
       },
       borderRadius: {
         xl: "12px",

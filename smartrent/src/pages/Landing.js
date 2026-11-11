@@ -1,201 +1,219 @@
 import { Link } from "react-router-dom";
-import {
-  FaBuilding,
-  FaMoneyBillWave,
-  FaUsers,
-  FaChartLine,
-  FaBell,
-  FaShieldAlt,
-  FaArrowRight,
-} from "react-icons/fa";
-import PublicSidebar from "../components/PublicSidebar";
-import Footer from "../components/Footer";
-import DownloadAppButton from "../components/DownloadAppButton";
-import galleryTownhouse from "../assets/gallery-townhouse.jpg";
+import { SitePage, Eyebrow, SiteButton, CtaBand, StatusChip } from "../components/site/SiteUi";
+
+// Sample figures for the hero's dashboard preview — display only.
+const PREVIEW_TENANTS = [
+  { name: "Chinedu Eze", unit: "Flat 2B", status: "Overdue" },
+  { name: "Amaka Obi", unit: "Flat 4A", status: "Part-paid" },
+  { name: "Ngozi Stores", unit: "Shop 4", status: "Paid" },
+];
+
+const TRUST = ["Flats and shops", "Landlord, accountant and tenant logins", "Works on any phone", "Your records stay private"];
+
+const icon = (d) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    {d}
+  </svg>
+);
 
 const FEATURES = [
   {
-    icon: FaBuilding,
-    title: "Property & Room Management",
-    body: "Add, edit, or delete properties and rooms at any time — organized and personal properties, tracked separately.",
+    title: "Rent records",
+    body: "Record every payment, see part-payments and arrears at a glance, and give a receipt in seconds.",
+    icon: icon(<><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></>),
   },
   {
-    icon: FaMoneyBillWave,
-    title: "Payment Tracking",
-    body: "Record rent payments in Naira, with full edit and delete history for correcting entry mistakes.",
+    title: "Tenants and shop owners",
+    body: "Keep each person, unit, rent amount and due date together, for flats and for shops.",
+    icon: icon(<><circle cx="9" cy="8" r="3.5" /><path d="M2 20c0-4 3-6 7-6s7 2 7 6" /></>),
   },
   {
-    icon: FaUsers,
-    title: "Tenants & Shop Owners",
-    body: "Residential tenants and commercial shop owners are tracked with the fields that matter to each — next of kin vs. business/CAC details.",
+    title: "Safe documents",
+    body: "Store agreements and IDs privately. Only you and your accountant can open them.",
+    icon: icon(<><path d="M6 2h9l5 5v15H6z" /><path d="M14 2v6h6" /></>),
   },
   {
-    icon: FaChartLine,
-    title: "Occupancy Dashboard",
-    body: "See occupancy across every property at a glance, grouped by Organization vs. Personal ownership.",
+    title: "Reminders",
+    body: "See who is due and who is late, and send a polite reminder on WhatsApp in one tap.",
+    icon: icon(<><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></>),
   },
   {
-    icon: FaBell,
-    title: "Complaints & Messages",
-    body: "Tenants raise issues directly to their landlord, who responds and tracks resolution status.",
+    title: "Simple reports",
+    body: "Monthly income, arrears and a full payment history you can download.",
+    icon: icon(<path d="M4 20V10M10 20V4M16 20v-8M22 20H2" />),
   },
   {
-    icon: FaShieldAlt,
-    title: "Secure Document Management",
-    body: "Referee forms, ID, and tenancy agreements — stored per tenant, viewable only by Secretary and Landlord.",
+    title: "Private by design",
+    body: "Every landlord sees only their own data, and every change is written to a history log.",
+    icon: icon(<path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z" />),
   },
 ];
 
-const STATS = [
-  { value: "3", label: "Account Types" },
-  { value: "₦", label: "Naira-Native" },
-  { value: "100%", label: "Audit-Logged Payments" },
-  { value: "24/7", label: "Access Anywhere" },
+const STEPS = [
+  { title: "Add your property", body: "List your buildings and units, flats or shops, with the rent for each." },
+  { title: "Add your tenants", body: "Enter each tenant, their phone number and when rent is due." },
+  { title: "Record payments", body: "When money arrives, record it, send the receipt, and watch your dashboard update." },
 ];
 
-const ABOUT_POINTS = [
-  {
-    icon: FaUsers,
-    title: "Four roles, one system",
-    body: "Landlord, Secretary/Accountant, Tenant/Shop Owner, and a platform Super Admin — each sees exactly what's relevant to them, nothing more.",
-  },
-  {
-    icon: FaMoneyBillWave,
-    title: "Manual or online payments",
-    body: "Record cash, transfer, or POS payments by hand, or let tenants pay online through Paystack — either way, one payment history.",
-  },
-  {
-    icon: FaShieldAlt,
-    title: "Documents stay protected",
-    body: "Tenancy agreements, IDs, and referee forms are visible only to Secretary and Landlord accounts — never exposed to a tenant login, even via a direct link.",
-  },
+const ROLES = [
+  { title: "Landlord", body: "Full control of properties, tenants and payments." },
+  { title: "Secretary or accountant", body: "Records payments and prepares reports for you." },
+  { title: "Tenant or shop owner", body: "Sees their own balance and receipts only." },
 ];
+
+const h2 = "m-0 mt-2.5 font-display text-[clamp(30px,4vw,44px)] font-bold leading-[1.1]";
+
+function DashboardPreview() {
+  return (
+    <div className="relative min-w-0 flex-[1_1_400px] pb-8 pt-4" aria-label="Example RentaFlow dashboard with sample figures" role="img">
+      <div className="mx-auto max-w-[480px] overflow-hidden rounded-[22px] bg-white shadow-[0_24px_60px_rgba(60,10,10,0.18)]">
+        <div className="bg-brand-700 px-6 pb-10 pt-5 text-white">
+          <div className="text-[13px] text-[#F3D9A0]">Collected this month</div>
+          <div className="font-display text-[38px] font-bold">₦1,240,000</div>
+        </div>
+        <div className="-mt-[22px] px-6 pb-2">
+          <div className="rounded-xl bg-white px-3.5 py-3 shadow-[0_4px_14px_rgba(60,10,10,0.1)]">
+            <div className="h-2 overflow-hidden rounded bg-[#EEE6D8]">
+              <div className="h-full w-[78%] bg-gold-500" />
+            </div>
+            <div className="mt-1.5 flex justify-between text-xs text-site-muted">
+              <span>78% of expected</span>
+              <span>₦1,590,000</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2.5 px-6 pb-6 pt-2">
+          {PREVIEW_TENANTS.map((t, i) => (
+            <div key={t.name} className={`flex items-center gap-3 py-2.5 ${i < PREVIEW_TENANTS.length - 1 ? "border-b border-[#EEE6D8]" : ""}`}>
+              <div className="flex-grow">
+                <div className="text-[15px] font-semibold">{t.name}</div>
+                <div className="text-[13px] text-site-muted">{t.unit}</div>
+              </div>
+              <StatusChip status={t.status} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="absolute bottom-0 right-0 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-[0_12px_32px_rgba(60,10,10,0.2)]">
+        <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true">
+          <circle cx="18" cy="18" r="16" fill="#E3F2E7" />
+          <path d="M11 18.5l5 5 9-10" fill="none" stroke="#1F6B3A" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <div>
+          <div className="text-sm font-bold">Payment saved</div>
+          <div className="text-xs text-site-muted">Receipt RF-2026-0142</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-white" id="top">
-      <PublicSidebar />
-
-      <div className="lg:pl-64">
-      <section className="relative overflow-hidden bg-gradient-to-b from-brand-50/60 to-white">
-        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:py-24 lg:px-8">
-          <div>
-            <span className="inline-block rounded-full bg-brand-100 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-brand-700">
-              Rental Management, Simplified
-            </span>
-            <h1 className="mt-5 text-4xl font-extrabold leading-tight text-ink-900 sm:text-5xl">
-              Manage Properties, Tenants &amp; Rent Records Easily
+    <SitePage>
+      {/* 1. Hero */}
+      <section>
+        <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-12 px-6 pb-20 pt-[72px]">
+          <div className="min-w-0 flex-[1_1_440px]">
+            <div className="inline-block rounded-full bg-[#F6E7BC] px-3.5 py-1.5 text-[13px] font-semibold text-[#5A4100]">
+              Made for Nigerian landlords
+            </div>
+            <h1 className="m-0 mt-5 font-display text-[clamp(38px,5.4vw,66px)] font-bold leading-[1.05]">
+              Know who has paid. Every month. Without the stress.
             </h1>
-            <p className="mt-5 max-w-lg text-base leading-relaxed text-ink-500">
-              RentaFlow helps landlords, secretaries, and tenants/shop owners track properties, units, payments,
-              and tenancy documents — all in one secure, easy-to-use place.
+            <p className="m-0 mt-5 max-w-[520px] text-[19px] leading-relaxed text-site-muted">
+              RentaFlow keeps your tenants, rent records and documents in one safe place, so you stop chasing notebooks and
+              WhatsApp messages.
             </p>
-            <div className="mt-8 flex flex-wrap gap-4">
-              <Link
-                to="/register"
-                className="flex items-center gap-2 rounded-xl bg-brand-500 px-6 py-3.5 text-sm font-bold text-white shadow-soft transition hover:bg-brand-600"
-              >
-                Get Started <FaArrowRight size={13} />
-              </Link>
-              <Link
-                to="/login"
-                className="rounded-xl border border-ink-200 bg-white px-6 py-3.5 text-sm font-bold text-ink-700 transition hover:border-brand-300 hover:text-brand-600"
-              >
-                Login
-              </Link>
-              <DownloadAppButton className="flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-6 py-3.5 text-sm font-bold text-ink-700 transition hover:border-brand-300 hover:text-brand-600" />
+            <div className="mt-8 flex flex-wrap gap-3">
+              <SiteButton to="/register">Get started</SiteButton>
+              <SiteButton href="#how" variant="outline">See how it works</SiteButton>
             </div>
           </div>
-          <div className="overflow-hidden rounded-2xl shadow-soft">
-            <img
-              src={galleryTownhouse}
-              alt="A modern rental property managed with RentaFlow"
-              className="h-full w-full object-cover"
-            />
-          </div>
+          <DashboardPreview />
         </div>
       </section>
 
-      <section className="border-y border-ink-100 bg-ink-900">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-4 py-10 sm:px-6 md:grid-cols-4 lg:px-8">
-          {STATS.map((s) => (
-            <div key={s.label} className="text-center">
-              <div className="text-3xl font-extrabold text-white">{s.value}</div>
-              <div className="mt-1 text-xs font-medium uppercase tracking-wide text-ink-400">
-                {s.label}
-              </div>
-            </div>
+      {/* 2. Trust strip */}
+      <section className="border-y border-site-border bg-white">
+        <ul className="mx-auto flex max-w-[1200px] flex-wrap justify-center gap-x-10 gap-y-4 px-6 py-7 text-[15px] font-semibold text-brand-700">
+          {TRUST.map((t) => (
+            <li key={t}>{t}</li>
           ))}
-        </div>
+        </ul>
       </section>
 
-      <section id="features" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-extrabold text-ink-900">Everything you need, in one place</h2>
-          <p className="mt-3 text-ink-500">
-            A complete toolkit for landlords and tenants to manage rentals effortlessly.
-          </p>
+      {/* 3. Everything in one place */}
+      <section className="mx-auto max-w-[1200px] px-6 pb-6 pt-[88px]">
+        <div className="max-w-[640px]">
+          <Eyebrow>EVERYTHING IN ONE PLACE</Eyebrow>
+          <h2 className={h2}>Less paperwork. More peace of mind.</h2>
         </div>
-        <div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-10 grid grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))] gap-5">
           {FEATURES.map((f) => (
-            <div
+            <Link
               key={f.title}
-              className="rounded-2xl border border-ink-100 bg-white p-7 shadow-card transition hover:-translate-y-1 hover:shadow-soft"
+              to="/features"
+              className="block rounded-[18px] bg-white p-7 transition-[transform,box-shadow] duration-[250ms] hover:shadow-[0_12px_28px_rgba(60,10,10,0.14)] motion-safe:hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
-                <f.icon size={20} />
-              </div>
-              <h3 className="mt-5 text-lg font-bold text-ink-900">{f.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-ink-500">{f.body}</p>
-            </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-[#F6E7BC] text-brand-700">{f.icon}</div>
+              <h3 className="m-0 mt-[18px] text-[19px] font-bold">{f.title}</h3>
+              <p className="m-0 mt-2 leading-relaxed text-site-muted">{f.body}</p>
+            </Link>
           ))}
         </div>
       </section>
 
-      <section id="about" className="bg-ink-50 py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-extrabold text-ink-900">Built for how Nigerian rentals actually work</h2>
-            <p className="mt-3 text-ink-500">
-              One place for landlords, secretaries, tenants, and shop owners — instead of spreadsheets, paper
-              agreements, and WhatsApp reminders.
-            </p>
+      {/* 4. How it works */}
+      <section id="how" className="mx-auto max-w-[1200px] scroll-mt-4 px-6 pb-6 pt-[72px]">
+        <div className="max-w-[640px]">
+          <Eyebrow>HOW IT WORKS</Eyebrow>
+          <h2 className={h2}>Set up in an afternoon.</h2>
+        </div>
+        <ol className="m-0 mt-10 grid list-none grid-cols-1 gap-8 p-0 md:grid-cols-3">
+          {STEPS.map((s, i) => (
+            <li key={s.title}>
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-700 font-display text-[22px] font-bold text-[#F3D9A0]">
+                {i + 1}
+              </div>
+              <h3 className="m-0 mt-4 text-xl font-bold">{s.title}</h3>
+              <p className="m-0 mt-2 leading-relaxed text-site-muted">{s.body}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* 5. A login for everyone */}
+      <section className="mx-auto max-w-[1200px] px-6 pb-6 pt-[72px]">
+        <div className="flex flex-wrap items-center gap-8 rounded-3xl bg-site-deep px-6 py-12 text-white sm:px-10">
+          <div className="flex-[1_1_360px]">
+            <Eyebrow light>A LOGIN FOR EVERYONE</Eyebrow>
+            <h2 className="m-0 mt-2.5 font-display text-[clamp(28px,3.6vw,40px)] font-bold leading-[1.1]">The right access for each person.</h2>
           </div>
-          <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
-            {ABOUT_POINTS.map((p) => (
-              <div key={p.title} className="rounded-2xl bg-white p-7 shadow-card">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
-                  <p.icon size={18} />
-                </div>
-                <h3 className="mt-4 text-base font-bold text-ink-900">{p.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-ink-600">{p.body}</p>
+          <div className="grid flex-[2_1_460px] grid-cols-[repeat(auto-fit,minmax(min(100%,200px),1fr))] gap-4">
+            {ROLES.map((r) => (
+              <div key={r.title} className="rounded-2xl bg-[#431010] p-5">
+                <h3 className="m-0 text-base font-bold text-[#F3D9A0]">{r.title}</h3>
+                <p className="m-0 mt-1.5 text-sm leading-normal text-[#E8DADA]">{r.body}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center justify-between gap-8 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 px-8 py-14 text-center shadow-soft md:flex-row md:text-left">
-          <div>
-            <h2 className="text-2xl font-extrabold text-white sm:text-3xl">
-              Ready to simplify your rental management?
-            </h2>
-            <p className="mt-2 max-w-md text-sm text-brand-50">
-              Create your free RentaFlow account today — no credit card required.
-            </p>
-          </div>
-          <Link
-            to="/register"
-            className="flex shrink-0 items-center gap-2 rounded-xl bg-white px-6 py-3.5 text-sm font-bold text-brand-700 shadow-card transition hover:bg-brand-50"
-          >
-            Get Started <FaArrowRight size={13} />
-          </Link>
-        </div>
+      {/* 6. Pricing teaser */}
+      <section className="mx-auto max-w-[1200px] px-6 pb-6 pt-[72px] text-center">
+        <h2 className="m-0 font-display text-[clamp(30px,4vw,44px)] font-bold leading-[1.1]">Simple monthly plans.</h2>
+        <p className="mx-auto mb-0 mt-3.5 max-w-[560px] text-lg leading-relaxed text-site-muted">
+          Pick a flat price based on how many units you manage.
+        </p>
+        <SiteButton to="/pricing" variant="outline" className="mt-6">See pricing</SiteButton>
       </section>
 
-      <Footer />
-      </div>
-    </div>
+      {/* 7. Final call to action */}
+      <CtaBand title="Ready to stop chasing rent in notebooks?">
+        <SiteButton to="/register" variant="gold">Get started</SiteButton>
+      </CtaBand>
+    </SitePage>
   );
 }

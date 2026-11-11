@@ -61,7 +61,7 @@ export default function InstallPrompt() {
           {canPrompt && (
             <button
               onClick={install}
-              className="mt-3 rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-white transition hover:bg-brand-600"
+              className="mt-3 min-h-[44px] rounded-xl bg-brand-500 px-5 text-sm font-bold text-white transition hover:bg-brand-600"
             >
               Install
             </button>
@@ -71,7 +71,7 @@ export default function InstallPrompt() {
         <button
           onClick={dismiss}
           aria-label="Dismiss"
-          className="shrink-0 rounded-lg p-1 text-ink-400 transition hover:bg-ink-50 hover:text-ink-600"
+          className="-m-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-500 transition hover:bg-ink-50 hover:text-ink-700"
         >
           <FaTimes size={14} />
         </button>

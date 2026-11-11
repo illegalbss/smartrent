@@ -26,6 +26,8 @@ import { Card, Badge, Avatar, StatCard, formatDate, formatNaira, formatNairaComp
 import { IncomeOverviewChart, MonthlyCollectionsChart, PaymentStatusChart } from "../../../components/dashboard/FinanceCharts";
 import Modal from "../../../components/Modal";
 import ConfirmDialog from "../../../components/ConfirmDialog";
+import ConfirmPaymentSheet from "../../../components/payments/ConfirmPaymentSheet";
+import { showPaymentSuccess } from "../../../utils/paymentSuccess";
 import FormField from "../../../components/FormField";
 import { STAFF_NAV } from "../../../config/navigation";
 import { tenantsApi } from "../../../api/tenants";
@@ -173,9 +175,26 @@ function TenantEditForm({ tenant, onSubmit, onCancel, submitting, error }) {
   );
 }
 
-function PaymentForm({ initial, onSubmit, onCancel, submitting, error }) {
+const PAYMENT_METHODS = ["Cash", "Transfer", "POS"];
+const PAYMENT_STATUS_LABEL = { PAID: "Paid", PARTIAL: "Part-paid", OWING: "Owing" };
+
+function unitLabel(tenant) {
+  if (!tenant.room) return "—";
+  const word = tenant.occupantType === "SHOP_OWNER" ? "Unit" : "Room";
+  return `${word} ${tenant.room.roomNumber}`;
+}
+
+function periodLabel(start, end, fallbackDate) {
+  if (start && end) return `${formatDate(start)} – ${formatDate(end)}`;
+  return fallbackDate ? `Paid ${formatDate(fallbackDate)}` : "—";
+}
+
+// "add" mode asks for the payment method and continues to a confirm sheet;
+// "edit" mode saves directly, as before.
+function PaymentForm({ mode = "add", initial, onSubmit, onCancel, submitting, error }) {
+  const isAdd = mode === "add";
   const [form, setForm] = useState(
-    initial || { amount: "", datePaid: "", coverageStart: "", coverageEnd: "", status: "PAID", notes: "" }
+    initial || { amount: "", datePaid: "", coverageStart: "", coverageEnd: "", status: "PAID", notes: "", method: "Cash" }
   );
 
   return (
@@ -208,6 +227,26 @@ function PaymentForm({ initial, onSubmit, onCancel, submitting, error }) {
           ))}
         </div>
       </div>
+      {isAdd && (
+        <fieldset className="mb-4">
+          <legend className="mb-1.5 block text-sm font-semibold text-ink-700">Method</legend>
+          <div className="grid grid-cols-3 gap-2">
+            {PAYMENT_METHODS.map((m) => (
+              <button
+                type="button"
+                key={m}
+                aria-pressed={form.method === m}
+                onClick={() => setForm((f) => ({ ...f, method: m }))}
+                className={`min-h-[44px] rounded-xl border text-xs font-bold transition ${
+                  form.method === m ? "border-brand-500 bg-brand-50 text-brand-700" : "border-ink-200 text-ink-500 hover:border-brand-300"
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+      )}
       <FormField label="Notes (optional)" name="notes" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
       {error && <p className="mb-4 text-sm font-medium text-red-500">{error}</p>}
       <div className="flex gap-3">
@@ -215,7 +254,7 @@ function PaymentForm({ initial, onSubmit, onCancel, submitting, error }) {
           Cancel
         </button>
         <button type="submit" disabled={submitting} className="flex-1 rounded-xl bg-brand-500 py-2.5 text-sm font-bold text-white hover:bg-brand-600 disabled:opacity-60">
-          {submitting ? "Saving…" : "Save Payment"}
+          {isAdd ? "Continue" : submitting ? "Saving…" : "Save Payment"}
         </button>
       </div>
     </form>
@@ -743,6 +782,9 @@ export default function TenantDetail() {
   const [activeTab, setActiveTab] = useState("Overview");
   const [editModal, setEditModal] = useState(false);
   const [paymentModal, setPaymentModal] = useState(null);
+  const [pendingPayment, setPendingPayment] = useState(null);
+  const [savingPayment, setSavingPayment] = useState(false);
+  const [confirmError, setConfirmError] = useState("");
   const [deletePayment, setDeletePayment] = useState(null);
   const [uploadForm, setUploadForm] = useState({ type: "OTHER", file: null });
   const [submitting, setSubmitting] = useState(false);
@@ -782,23 +824,29 @@ export default function TenantDetail() {
     }
   }
 
+  function paymentPayload(form) {
+    return {
+      amount: Number(form.amount),
+      datePaid: form.datePaid,
+      coverageStart: form.coverageStart || undefined,
+      coverageEnd: form.coverageEnd || undefined,
+      status: form.status,
+      notes: form.notes || undefined,
+    };
+  }
+
   async function handlePaymentSubmit(form) {
+    if (paymentModal.mode === "add") {
+      // Nothing is saved yet — the confirm sheet comes first.
+      setPaymentModal(null);
+      setConfirmError("");
+      setPendingPayment(form);
+      return;
+    }
     setSubmitting(true);
     setFormError("");
     try {
-      const payload = {
-        amount: Number(form.amount),
-        datePaid: form.datePaid,
-        coverageStart: form.coverageStart || undefined,
-        coverageEnd: form.coverageEnd || undefined,
-        status: form.status,
-        notes: form.notes || undefined,
-      };
-      if (paymentModal.mode === "add") {
-        await paymentsApi.create(id, payload);
-      } else {
-        await paymentsApi.update(paymentModal.payment.id, payload);
-      }
+      await paymentsApi.update(paymentModal.payment.id, paymentPayload(form));
       setPaymentModal(null);
       load();
     } catch (err) {
@@ -806,6 +854,46 @@ export default function TenantDetail() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  // The payment method has no database field yet, so it's recorded at the
+  // start of the payment's notes ("Method: Cash · …").
+  async function handleConfirmPayment() {
+    const form = pendingPayment;
+    setSavingPayment(true);
+    setConfirmError("");
+    let saved;
+    try {
+      const notes = [`Method: ${form.method}`, form.notes?.trim()].filter(Boolean).join(" · ");
+      const res = await paymentsApi.create(id, { ...paymentPayload(form), notes });
+      saved = res.data;
+    } catch (err) {
+      // Not saved: keep the sheet open with the error and a Retry button.
+      setConfirmError(err.message);
+      return;
+    } finally {
+      setSavingPayment(false);
+    }
+
+    setPendingPayment(null);
+    load();
+    // Only now — after the server confirmed the save — show the success
+    // screen, once the confirm sheet has finished closing.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    showPaymentSuccess({
+      tenant: tenant.name,
+      unit: unitLabel(tenant),
+      amount: saved.amount,
+      period: periodLabel(saved.coverageStart, saved.coverageEnd, saved.datePaid),
+      receiptNo: `#${saved.id.slice(-8).toUpperCase()}`,
+      status: saved.status,
+      phone: tenant.phone,
+    });
+  }
+
+  function handleEditPendingPayment() {
+    setPaymentModal({ mode: "add", draft: pendingPayment });
+    setPendingPayment(null);
   }
 
   async function handleDeletePayment() {
@@ -1120,8 +1208,9 @@ export default function TenantDetail() {
                     status: paymentModal.payment.status,
                     notes: paymentModal.payment.notes || "",
                   }
-                : undefined
+                : paymentModal.draft
             }
+            mode={paymentModal.mode}
             onSubmit={handlePaymentSubmit}
             onCancel={() => setPaymentModal(null)}
             submitting={submitting}
@@ -1129,6 +1218,25 @@ export default function TenantDetail() {
           />
         )}
       </Modal>
+
+      {pendingPayment && tenant && (
+        <ConfirmPaymentSheet
+          details={{
+            tenant: tenant.name,
+            unit: unitLabel(tenant),
+            period: pendingPayment.coverageStart && pendingPayment.coverageEnd
+              ? periodLabel(pendingPayment.coverageStart, pendingPayment.coverageEnd)
+              : "Worked out from the date paid",
+            method: pendingPayment.method,
+            status: PAYMENT_STATUS_LABEL[pendingPayment.status],
+            amount: formatNaira(Number(pendingPayment.amount)),
+          }}
+          saving={savingPayment}
+          error={confirmError}
+          onConfirm={handleConfirmPayment}
+          onBack={handleEditPendingPayment}
+        />
+      )}
 
       <Modal open={complaintModal} title="Log a Complaint" onClose={() => setComplaintModal(false)}>
         <ComplaintForm onSubmit={handleNewComplaint} onCancel={() => setComplaintModal(false)} submitting={submitting} error={formError} />

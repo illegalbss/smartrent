@@ -11,6 +11,27 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* "How it works" and other in-page links glide instead of jumping —
+   except for people who've asked their device for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Bottom sheets slide up (used with Tailwind's motion-safe:, so reduced-motion
+   users get no animation). */
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
