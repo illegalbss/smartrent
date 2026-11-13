@@ -228,7 +228,10 @@ async function listMonthlyLedger(req, res, next) {
         count: payments.length,
         payments: payments.map((p) => ({
           id: p.id,
+          tenantId: p.tenantId,
           tenantName: p.tenant.name,
+          notes: p.notes,
+          createdByRole: p.createdByRole,
           room: p.tenant.room ? `${p.tenant.room.roomNumber} — ${p.tenant.room.property.name}` : "Unassigned",
           amount: p.amount,
           datePaid: p.datePaid,

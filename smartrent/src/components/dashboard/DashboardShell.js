@@ -3,7 +3,7 @@ import Topbar from "./Topbar";
 
 export default function DashboardShell({ navItems, title, subtitle, children }) {
   return (
-    <div className="min-h-screen bg-ink-50">
+    <div className="min-h-screen bg-site-cream text-site-text">
       <Sidebar navItems={navItems} />
       <div className="lg:pl-64 print:pl-0">
         <Topbar title={title} subtitle={subtitle} />

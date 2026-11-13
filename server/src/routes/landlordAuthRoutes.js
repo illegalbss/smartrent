@@ -2,7 +2,7 @@ const { Router } = require("express");
 const { body } = require("express-validator");
 const { requireAuth } = require("../middleware/auth");
 const { authLimiter } = require("../middleware/rateLimit");
-const { signup, login, getProfile, updateProfile, changePassword } = require("../controllers/landlordAuthController");
+const { signup, login, getProfile, updateProfile, changePassword, listLoginActivity } = require("../controllers/landlordAuthController");
 
 const router = Router();
 
@@ -29,6 +29,7 @@ router.post(
 
 router.get("/landlord/profile", requireAuth("landlord"), getProfile);
 router.put("/landlord/profile", requireAuth("landlord"), updateProfile);
+router.get("/landlord/login-activity", requireAuth("landlord"), listLoginActivity);
 router.post(
   "/auth/landlord/change-password",
   requireAuth("landlord"),

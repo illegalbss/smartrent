@@ -94,23 +94,25 @@ export default function Topbar({ title, subtitle }) {
   }, []);
 
   return (
-    <header className="sticky top-0 z-10 flex items-center justify-between border-b border-ink-100 bg-white/90 px-6 py-4 backdrop-blur lg:px-8 print:hidden">
-      <div className="ml-12 lg:ml-0">
-        <h1 className="text-lg font-extrabold text-ink-900 sm:text-xl">{title}</h1>
-        {subtitle && <p className="text-xs text-ink-400 sm:text-sm">{subtitle}</p>}
+    <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-site-border bg-site-cream/95 px-6 py-4 backdrop-blur lg:px-8 print:hidden">
+      <div className="ml-12 min-w-0 lg:ml-0">
+        {subtitle && <p className="m-0 truncate text-[13px] text-site-muted sm:text-sm">{subtitle}</p>}
+        <h1 className="m-0 truncate font-display text-xl font-bold text-site-text sm:text-[28px] sm:leading-tight">{title}</h1>
       </div>
-      <div className="flex items-center gap-3">
-        <span className="hidden rounded-xl border border-ink-200 px-3.5 py-2 text-xs font-semibold text-ink-500 sm:block">
+      <div className="flex shrink-0 items-center gap-3">
+        <span className="hidden min-h-[44px] items-center rounded-xl border border-site-border bg-white px-4 text-sm font-semibold text-site-text sm:inline-flex">
           {today}
         </span>
         <div className="relative" ref={wrapperRef}>
           <button
             onClick={() => setOpen((o) => !o)}
-            className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-ink-200 text-ink-500 transition hover:border-brand-300 hover:text-brand-600"
+            aria-label={`Notifications${items.length ? ` (${items.length})` : ""}`}
+            aria-expanded={open}
+            className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-site-border bg-white text-brand-700 transition hover:border-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
           >
             <FaBell size={15} />
             {items.length > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#8A1C1C] px-1 text-[10px] font-bold text-white">
                 {items.length > 9 ? "9+" : items.length}
               </span>
             )}

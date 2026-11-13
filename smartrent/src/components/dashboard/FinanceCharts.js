@@ -2,7 +2,12 @@ import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContai
 import { Card, formatNaira } from "./UiKit";
 
 const STATUS_LABEL = { PAID: "Paid", PARTIAL: "Partial", OWING: "Owing" };
-const PIE_COLORS = { PAID: "#26b568", PARTIAL: "#d97706", OWING: "#dc2626" };
+// Same hues as the status chips; they also differ in lightness so they stay
+// distinguishable without relying on colour alone.
+const PIE_COLORS = { PAID: "#1F6B3A", PARTIAL: "#D4A017", OWING: "#8A1C1C" };
+const MAROON = "#5C1010";
+const GOLD_SOFT = "#E6C26A";
+const AXIS = { fontSize: 12, fill: "#5E5249" };
 
 export function IncomeOverviewChart({ series, className = "lg:col-span-2" }) {
   return (
@@ -12,20 +17,20 @@ export function IncomeOverviewChart({ series, className = "lg:col-span-2" }) {
           <AreaChart data={series} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="incomeFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#26b568" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="#26b568" stopOpacity={0} />
+                <stop offset="0%" stopColor={GOLD_SOFT} stopOpacity={0.45} />
+                <stop offset="100%" stopColor={GOLD_SOFT} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#8792a2" }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="month" tick={AXIS} axisLine={false} tickLine={false} />
             <YAxis
-              tick={{ fontSize: 11, fill: "#8792a2" }}
+              tick={{ ...AXIS, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(v) => (v >= 1000 ? `₦${(v / 1000).toFixed(0)}k` : `₦${v}`)}
               width={50}
             />
             <Tooltip formatter={(value) => formatNaira(value)} labelStyle={{ color: "#1f2329" }} />
-            <Area type="monotone" dataKey="total" stroke="#26b568" strokeWidth={2.5} fill="url(#incomeFill)" name="Collected" />
+            <Area type="monotone" dataKey="total" stroke={MAROON} strokeWidth={2.5} fill="url(#incomeFill)" name="Collected" />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -39,16 +44,16 @@ export function MonthlyCollectionsChart({ series, className = "lg:col-span-2" })
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={series} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-            <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#8792a2" }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="month" tick={AXIS} axisLine={false} tickLine={false} />
             <YAxis
-              tick={{ fontSize: 11, fill: "#8792a2" }}
+              tick={{ ...AXIS, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(v) => (v >= 1000 ? `₦${(v / 1000).toFixed(0)}k` : `₦${v}`)}
               width={50}
             />
             <Tooltip formatter={(value) => formatNaira(value)} labelStyle={{ color: "#1f2329" }} />
-            <Bar dataKey="total" fill="#26b568" name="Collected" radius={[6, 6, 0, 0]} />
+            <Bar dataKey="total" fill={GOLD_SOFT} name="Collected" radius={[8, 8, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -63,7 +68,7 @@ export function PaymentStatusChart({ byStatus }) {
   return (
     <Card title="Payment Status">
       {total === 0 ? (
-        <p className="text-sm text-ink-400">No payments recorded yet.</p>
+        <p className="text-sm text-site-muted">No payments recorded yet.</p>
       ) : (
         <>
           <div className="h-40">
@@ -81,7 +86,7 @@ export function PaymentStatusChart({ byStatus }) {
           <div className="mt-2 space-y-1.5">
             {segments.map((s) => (
               <div key={s.key} className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1.5 text-ink-500">
+                <span className="flex items-center gap-1.5 text-site-muted">
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PIE_COLORS[s.key] }} />
                   {STATUS_LABEL[s.key]}
                 </span>

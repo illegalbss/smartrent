@@ -55,6 +55,33 @@ async function listForTenant(req, res, next) {
   }
 }
 
+// Staff-only: every document across this landlord's tenants, newest first,
+// for the Documents page. Metadata only — files still go through
+// downloadDocument, which re-checks ownership.
+async function listAll(req, res, next) {
+  try {
+    const documents = await prisma.document.findMany({
+      where: { tenant: { landlordId: req.landlordId } },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        type: true,
+        fileName: true,
+        mimeType: true,
+        sizeBytes: true,
+        uploadedByRole: true,
+        createdAt: true,
+        tenant: {
+          select: { id: true, name: true, room: { select: { roomNumber: true, property: { select: { name: true } } } } },
+        },
+      },
+    });
+    res.json({ success: true, data: documents });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // Staff-only: download/view a stored document.
 async function downloadDocument(req, res, next) {
   try {
@@ -88,4 +115,4 @@ async function deleteDocument(req, res, next) {
   }
 }
 
-module.exports = { MANUAL_UPLOAD_TYPES, uploadForTenant, listForTenant, downloadDocument, deleteDocument };
+module.exports = { MANUAL_UPLOAD_TYPES, uploadForTenant, listForTenant, listAll, downloadDocument, deleteDocument };

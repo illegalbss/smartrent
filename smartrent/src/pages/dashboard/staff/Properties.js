@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaPlus, FaBuilding, FaChevronRight, FaEdit, FaTrash } from "react-icons/fa";
+import { FaPlus, FaBuilding, FaEdit, FaTrash } from "react-icons/fa";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
-import { Card, Badge, EmptyState } from "../../../components/dashboard/UiKit";
+import { Badge, EmptyState, formatNaira, formatNairaCompact } from "../../../components/dashboard/UiKit";
 import Modal from "../../../components/Modal";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import FormField from "../../../components/FormField";
@@ -122,8 +122,61 @@ function PropertyForm({ initial, onSubmit, onCancel, submitting, error }) {
   );
 }
 
+// Unit-map tile colours (design spec): maroon = paid / up to date,
+// red = owing or nothing paid yet, gold = part-paid, dashed = vacant.
+const TILE = {
+  PAID: { cls: "bg-brand-700 text-white", label: "paid or up to date" },
+  OWING: { cls: "bg-[#8A1C1C] text-white", label: "owing" },
+  PARTIAL: { cls: "bg-gold-500 text-site-text", label: "part-paid" },
+  VACANT: { cls: "border-[1.5px] border-dashed border-[#B8AE9C] bg-[#EEEAE3] text-[#4A443D]", label: "vacant" },
+};
+const UNIT_CHIP = {
+  PAID: { tone: "green", label: "Up to date" },
+  OWING: { tone: "red", label: "Owing" },
+  PARTIAL: { tone: "amber", label: "Part-paid" },
+  VACANT: { tone: "ink", label: "Vacant" },
+};
+const FREQ_SHORT = { MONTHLY: "mo", QUARTERLY: "qtr", YEARLY: "yr" };
+
+// Each room's state, from the property's own detail data.
+function unitStates(detail) {
+  const arrearsByRoom = new Map((detail.stats?.tenantsInArrears || []).map((t) => [t.room, t.lastPaymentStatus]));
+  return detail.rooms.map((room) => {
+    let state = "VACANT";
+    if (room.status === "OCCUPIED") {
+      const arrears = arrearsByRoom.get(room.roomNumber);
+      state = !arrears ? "PAID" : arrears === "PARTIAL" ? "PARTIAL" : "OWING";
+    }
+    return { ...room, state, tenant: room.tenants?.[0] || null };
+  });
+}
+
+function UnitMap({ units, unitWord }) {
+  if (units.length === 0) return <p className="mt-4 text-sm text-site-muted">No {unitWord}s added yet.</p>;
+  const counts = Object.keys(TILE)
+    .map((k) => [k, units.filter((u) => u.state === k).length])
+    .filter(([, n]) => n > 0)
+    .map(([k, n]) => `${n} ${TILE[k].label}`)
+    .join(", ");
+  return (
+    <div className="mt-[18px] grid grid-cols-5 gap-2" role="img" aria-label={`Unit map: ${counts}`}>
+      {units.map((u) => (
+        <div
+          key={u.id}
+          title={`${u.roomNumber}: ${TILE[u.state].label}`}
+          className={`flex h-10 items-center justify-center truncate rounded-lg px-1 text-xs font-semibold ${TILE[u.state].cls}`}
+        >
+          {u.roomNumber}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Properties() {
   const [properties, setProperties] = useState(null);
+  const [details, setDetails] = useState({}); // propertyId -> property detail (rooms + stats)
+  const [selectedId, setSelectedId] = useState(null);
   const [error, setError] = useState("");
   const [modal, setModal] = useState(null); // { mode: "add" | "edit", property }
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -133,7 +186,14 @@ export default function Properties() {
   function load() {
     propertiesApi
       .list()
-      .then((res) => setProperties(res.data))
+      .then((res) => {
+        setProperties(res.data);
+        setSelectedId((current) => (res.data.some((p) => p.id === current) ? current : res.data[0]?.id || null));
+        // Per-property detail powers the unit maps and units table.
+        Promise.all(res.data.map((p) => propertiesApi.get(p.id).then((r) => [p.id, r.data]).catch(() => [p.id, null]))).then((pairs) =>
+          setDetails(Object.fromEntries(pairs))
+        );
+      })
       .catch((err) => setError(err.message));
   }
 
@@ -168,18 +228,27 @@ export default function Properties() {
     }
   }
 
+  const totalUnits = properties?.reduce((sum, p) => sum + p.totalRooms, 0) || 0;
+  const selected = properties?.find((p) => p.id === selectedId) || null;
+  const selectedUnits = selected && details[selected.id] ? unitStates(details[selected.id]) : null;
+  const ring = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500";
+
   return (
-    <DashboardShell navItems={STAFF_NAV} title="Properties" subtitle="Add, edit, or remove properties and correct entry mistakes">
+    <DashboardShell
+      navItems={STAFF_NAV}
+      title="Properties"
+      subtitle={properties ? `${properties.length} propert${properties.length === 1 ? "y" : "ies"} · ${totalUnits} units` : "Your buildings and units"}
+    >
       <div className="mb-5 flex justify-end">
         <button
           onClick={() => setModal({ mode: "add" })}
-          className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white shadow-card transition hover:bg-brand-600"
+          className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-gold-500 px-5 font-bold text-site-text transition motion-safe:hover:-translate-y-0.5 ${ring}`}
         >
-          <FaPlus size={12} /> Add Property
+          <FaPlus size={12} aria-hidden="true" /> Add property
         </button>
       </div>
 
-      {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</div>}
+      {error && <div className="mb-4 rounded-xl bg-[#FBE6E6] px-4 py-3 text-sm font-medium text-[#8A1C1C]">{error}</div>}
 
       {properties && properties.length === 0 && (
         <EmptyState
@@ -187,56 +256,159 @@ export default function Properties() {
           title="No properties yet"
           body="Add your first property to start tracking rooms, tenants, and payments."
           action={
-            <button
-              onClick={() => setModal({ mode: "add" })}
-              className="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-bold text-white"
-            >
-              Add Property
+            <button onClick={() => setModal({ mode: "add" })} className={`min-h-[44px] rounded-xl bg-gold-500 px-5 font-bold text-site-text ${ring}`}>
+              Add property
             </button>
           }
         />
       )}
 
       {properties && properties.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {properties.map((p) => (
-            <Card key={p.id} className="relative">
-              <Link to={`/dashboard/staff/properties/${p.id}`} className="block">
-                <div className="flex items-start justify-between gap-2">
-                  <PropertyThumb property={p} />
-                  <div className="flex flex-col items-end gap-1.5">
-                    {p.propertyType === "COMMERCIAL" && <Badge tone="amber">Store</Badge>}
-                    <Badge tone={p.ownershipType === "ORGANIZATION" ? "brand" : "ink"}>
-                      {p.ownershipType === "ORGANIZATION" ? "Organization" : "Personal"}
-                    </Badge>
+        <>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,380px),1fr))] gap-4">
+            {properties.map((p) => {
+              const unitWord = p.propertyType === "COMMERCIAL" ? "unit" : "room";
+              const fullyLet = p.totalRooms > 0 && p.occupiedRooms === p.totalRooms;
+              const detail = details[p.id];
+              return (
+                <div
+                  key={p.id}
+                  className="flex flex-col rounded-[18px] border border-[#EFE6D6] bg-white p-6 transition-[transform,box-shadow] duration-[250ms] hover:shadow-[0_12px_28px_rgba(60,10,10,0.14)] motion-safe:hover:-translate-y-1"
+                >
+                  <Link to={`/dashboard/staff/properties/${p.id}`} className={`block rounded-lg ${ring}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <PropertyThumb property={p} />
+                        <div className="min-w-0">
+                          <h3 className="m-0 font-display text-[22px] font-bold leading-tight text-site-text">{p.name}</h3>
+                          <p className="m-0 mt-0.5 text-sm text-site-muted">
+                            {p.propertyType === "COMMERCIAL" ? "Shops" : "Flats"} · {p.totalRooms} {unitWord}
+                            {p.totalRooms === 1 ? "" : "s"}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge tone={fullyLet ? "green" : "amber"}>
+                        {p.occupiedRooms} of {p.totalRooms} let
+                      </Badge>
+                    </div>
+                    <p className="m-0 mt-2 line-clamp-2 text-[13px] text-site-muted">{p.address}</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {p.propertyType === "COMMERCIAL" && <Badge tone="amber">Store</Badge>}
+                      <Badge tone={p.ownershipType === "ORGANIZATION" ? "brand" : "ink"}>
+                        {p.ownershipType === "ORGANIZATION" ? "Organization" : "Personal"}
+                      </Badge>
+                    </div>
+
+                    {detail ? (
+                      <UnitMap units={unitStates(detail)} unitWord={unitWord} />
+                    ) : (
+                      <div className="mt-[18px] h-10 animate-pulse rounded-lg bg-site-cream motion-reduce:animate-none" aria-hidden="true" />
+                    )}
+
+                    <div className="mt-[18px] flex justify-between border-t border-[#F3ECDF] pt-3.5 text-sm">
+                      <span className="text-site-muted">Received this month</span>
+                      <b>{formatNaira(p.monthlyIncome)}</b>
+                    </div>
+                  </Link>
+
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      onClick={() => setModal({ mode: "edit", property: p })}
+                      className={`flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-site-border text-sm font-semibold text-site-text hover:bg-site-cream ${ring}`}
+                    >
+                      <FaEdit size={12} aria-hidden="true" /> Edit
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget(p)}
+                      className={`flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#F2C9C9] text-sm font-semibold text-[#8A1C1C] hover:bg-[#FBE6E6] ${ring}`}
+                    >
+                      <FaTrash size={12} aria-hidden="true" /> Delete
+                    </button>
                   </div>
                 </div>
-                <h3 className="mt-4 text-base font-bold text-ink-900">{p.name}</h3>
-                <p className="mt-1 text-sm text-ink-500">{p.address}</p>
-                <div className="mt-4 flex items-center justify-between text-sm">
-                  <span className="text-ink-500">
-                    {p.occupiedRooms}/{p.totalRooms} {p.propertyType === "COMMERCIAL" ? "units" : "rooms"} occupied
-                  </span>
-                  <FaChevronRight className="text-ink-300" size={13} />
+              );
+            })}
+          </div>
+
+          <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-site-muted">
+            <span>Maroon: paid or up to date</span>
+            <span>Red: owing or not yet paid</span>
+            <span>Gold: part-paid</span>
+            <span>Dashed: vacant</span>
+          </p>
+
+          {selected && (
+            <div className="mt-4 rounded-[18px] border border-[#EFE6D6] bg-white px-5 pb-4 pt-2 sm:px-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 py-3.5">
+                <h2 className="m-0 font-display text-xl font-bold">Units in {selected.name}</h2>
+                <div className="flex flex-wrap items-center gap-3">
+                  {properties.length > 1 && (
+                    <label className="flex items-center gap-2 text-sm text-site-muted">
+                      <span className="sr-only sm:not-sr-only">Show</span>
+                      <select
+                        value={selected.id}
+                        onChange={(e) => setSelectedId(e.target.value)}
+                        className={`min-h-[44px] rounded-xl border border-site-border bg-white px-3 text-sm font-semibold text-site-text ${ring}`}
+                      >
+                        {properties.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  <Link to={`/dashboard/staff/properties/${selected.id}`} className={`text-sm font-semibold text-brand-700 hover:underline ${ring}`}>
+                    Add or edit units
+                  </Link>
                 </div>
-              </Link>
-              <div className="mt-4 flex gap-2 border-t border-ink-100 pt-4">
-                <button
-                  onClick={() => setModal({ mode: "edit", property: p })}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-ink-200 py-2 text-xs font-bold text-ink-600 hover:bg-ink-50"
-                >
-                  <FaEdit size={11} /> Edit
-                </button>
-                <button
-                  onClick={() => setDeleteTarget(p)}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-200 py-2 text-xs font-bold text-red-600 hover:bg-red-50"
-                >
-                  <FaTrash size={11} /> Delete
-                </button>
               </div>
-            </Card>
-          ))}
-        </div>
+              {!selectedUnits ? (
+                <p className="pb-3 text-sm text-site-muted">Loading units…</p>
+              ) : selectedUnits.length === 0 ? (
+                <p className="pb-3 text-sm text-site-muted">No units yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="text-left text-[13px] text-site-muted">
+                        <th className="border-b border-[#EEE6D8] py-2 font-medium">Unit</th>
+                        <th className="border-b border-[#EEE6D8] py-2 font-medium">Rent</th>
+                        <th className="border-b border-[#EEE6D8] py-2 font-medium">Tenant</th>
+                        <th className="border-b border-[#EEE6D8] py-2 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedUnits.map((u) => (
+                        <tr key={u.id} className="border-b border-[#F3ECDF] last:border-b-0">
+                          <td className="py-3 pr-2 font-semibold">{u.roomNumber}</td>
+                          <td className="whitespace-nowrap py-3 pr-2">
+                            {/* Short amount on phones so the Status column stays on screen. */}
+                            <span className="sm:hidden">{formatNairaCompact(u.rentAmount)}</span>
+                            <span className="hidden sm:inline">{formatNaira(u.rentAmount)}</span>
+                            <span className="text-site-muted"> / {FREQ_SHORT[u.rentFrequency] || "yr"}</span>
+                          </td>
+                          <td className="py-3 pr-2">
+                            {u.tenant ? (
+                              <Link to={`/dashboard/staff/tenants/${u.tenant.id}`} className={`font-medium hover:text-brand-700 hover:underline ${ring}`}>
+                                {u.tenant.name}
+                              </Link>
+                            ) : (
+                              <span className="text-site-muted">No tenant</span>
+                            )}
+                          </td>
+                          <td className="py-3">
+                            <Badge tone={UNIT_CHIP[u.state].tone}>{UNIT_CHIP[u.state].label}</Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       <Modal open={!!modal} title={modal?.mode === "add" ? "Add Property" : "Edit Property"} onClose={() => setModal(null)}>

@@ -19,6 +19,8 @@ import Tenants from "./pages/dashboard/staff/Tenants";
 import PropertyTenants from "./pages/dashboard/staff/PropertyTenants";
 import TenantDetail from "./pages/dashboard/staff/TenantDetail";
 import PaymentLedger from "./pages/dashboard/staff/PaymentLedger";
+import Documents from "./pages/dashboard/staff/Documents";
+import History from "./pages/dashboard/staff/History";
 import StaffMaintenance from "./pages/dashboard/staff/Maintenance";
 import StaffNotices from "./pages/dashboard/staff/Notices";
 import StaffHouseRules from "./pages/dashboard/staff/HouseRules";
@@ -132,6 +134,22 @@ export default function App() {
           element={
             <ProtectedRoute role={STAFF_ROLES}>
               <StaffHouseRules />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/staff/documents"
+          element={
+            <ProtectedRoute role={STAFF_ROLES}>
+              <Documents />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/staff/history"
+          element={
+            <ProtectedRoute role={STAFF_ROLES}>
+              <History />
             </ProtectedRoute>
           }
         />

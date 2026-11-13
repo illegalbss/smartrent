@@ -146,4 +146,21 @@ async function changePassword(req, res, next) {
   }
 }
 
-module.exports = { signup, login, getProfile, updateProfile, changePassword };
+// Landlord-only: login attempts (successful and failed) on this landlord's
+// account and their secretaries' accounts — the same records the Super
+// Admin sees, scoped to this landlord. Read-only; nothing can delete them.
+async function listLoginActivity(req, res, next) {
+  try {
+    const logs = await prisma.activityLog.findMany({
+      where: { landlordId: req.auth.id },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+      select: { id: true, userName: true, userRole: true, action: true, attemptedEmail: true, ipAddress: true, createdAt: true },
+    });
+    res.json({ success: true, data: logs });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { signup, login, getProfile, updateProfile, changePassword, listLoginActivity };

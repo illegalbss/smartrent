@@ -1,6 +1,7 @@
 import { api, uploadFile, downloadFile } from "./client";
 
 export const documentsApi = {
+  listAll: () => api.get("/documents"),
   listForTenant: (tenantId) => api.get(`/tenants/${tenantId}/documents`),
   uploadForTenant: (tenantId, file, type) => uploadFile(`/tenants/${tenantId}/documents`, file, { type }),
   download: (documentId, filename) => downloadFile(`/documents/${documentId}/download`, filename),

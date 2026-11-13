@@ -6,6 +6,7 @@ const {
   MANUAL_UPLOAD_TYPES,
   uploadForTenant,
   listForTenant,
+  listAll,
   downloadDocument,
   deleteDocument,
 } = require("../controllers/documentController");
@@ -23,6 +24,7 @@ router.post(
   [body("type").isIn(MANUAL_UPLOAD_TYPES).withMessage("Invalid document type.")],
   uploadForTenant
 );
+router.get("/documents", staff, listAll);
 router.get("/documents/:documentId/download", staff, downloadDocument);
 router.delete("/documents/:documentId", staff, deleteDocument);
 
