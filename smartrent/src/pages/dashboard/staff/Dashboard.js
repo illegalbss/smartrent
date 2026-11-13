@@ -4,6 +4,7 @@ import { FaBuilding, FaArrowRight, FaDoorOpen, FaCheckCircle, FaExclamationTrian
 import DashboardShell from "../../../components/dashboard/DashboardShell";
 import { Badge, EmptyState, formatNaira, formatNairaCompact } from "../../../components/dashboard/UiKit";
 import FinanceReportSection from "../../../components/dashboard/FinanceReportSection";
+import QuickRecordPayment from "../../../components/dashboard/QuickRecordPayment";
 import AuthImage from "../../../components/AuthImage";
 import { STAFF_NAV } from "../../../config/navigation";
 import { dashboardApi } from "../../../api/dashboard";
@@ -338,11 +339,14 @@ export default function StaffDashboard() {
         </div>
       )}
 
+      {user.role === "secretary" && <QuickRecordPayment />}
+
       {!data && !error && <EmptyState title="Loading dashboard…" />}
 
       {data && (
         <div className="space-y-4">
-          <div className="flex flex-wrap justify-end gap-2.5">
+          {/* Secretaries already have the full Record a payment panel above. */}
+          <div className={`flex flex-wrap justify-end gap-2.5 ${user.role === "secretary" ? "hidden" : ""}`}>
             <Link
               to="/dashboard/staff/tenants"
               className="inline-flex min-h-[44px] items-center rounded-xl bg-gold-500 px-5 font-bold text-site-text transition motion-safe:hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 focus-visible:ring-offset-site-cream"

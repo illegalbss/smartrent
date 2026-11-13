@@ -15,16 +15,18 @@ import {
   FaStore,
   FaHome,
   FaHistory,
+  FaChartBar,
 } from "react-icons/fa";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { superAdminApi } from "../../api/superAdmin";
-import { formatDate, formatNaira } from "../../components/dashboard/UiKit";
+import { formatDate, formatNaira, formatNairaCompact } from "../../components/dashboard/UiKit";
 import Modal from "../../components/Modal";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import FormField from "../../components/FormField";
 import { useAuth } from "../../context/AuthContext";
 
 const SECTIONS = [
+  { key: "overview", label: "Overview", icon: FaChartBar },
   { key: "landlords", label: "Landlords", icon: FaBuilding },
   { key: "properties-detail", label: "Properties Detail", icon: FaHome },
   { key: "activity-logs", label: "Activity Logs", icon: FaHistory },
@@ -33,20 +35,164 @@ const SECTIONS = [
   { key: "transactions", label: "Transactions", icon: FaFileInvoiceDollar },
 ];
 
-const STATUS_TONE = { ACTIVE: "bg-green-100 text-green-700", TRIAL: "bg-blue-100 text-blue-700", EXPIRED: "bg-red-100 text-red-700", CANCELED: "bg-ink-100 text-ink-600" };
+// Status chips in the design-spec colours (all pass 4.5:1).
+const STATUS_TONE = {
+  ACTIVE: "bg-[#E3F2E7] text-[#1F6B3A]",
+  TRIAL: "bg-[#FFF1CC] text-[#6B4E00]",
+  EXPIRED: "bg-[#FBE6E6] text-[#8A1C1C]",
+  CANCELED: "bg-[#EEEAE3] text-[#4A443D]",
+};
+const STATUS_LABEL = { ACTIVE: "Active", TRIAL: "Trial", EXPIRED: "Expired", CANCELED: "Deactivated" };
 
 function Badge({ tone, children }) {
-  return <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-bold ${tone}`}>{children}</span>;
+  return <span className={`inline-flex items-center whitespace-nowrap rounded-xl px-2.5 py-1 text-xs font-semibold ${tone}`}>{children}</span>;
 }
 
 function StatCard({ label, value, icon: Icon }) {
   return (
-    <div className="rounded-xl bg-ink-50 p-4">
+    <div className="rounded-[18px] border border-[#EFE6D6] bg-white p-5">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-ink-500">{label}</p>
-        {Icon && <Icon size={13} className="text-violet-400" />}
+        <p className="m-0 text-[13px] text-site-muted">{label}</p>
+        {Icon && <Icon size={13} className="text-gold-600" aria-hidden="true" />}
       </div>
-      <p className="mt-1.5 text-2xl font-extrabold text-ink-900">{value}</p>
+      <p className="m-0 mt-1 font-display text-[26px] font-bold text-site-text">{value}</p>
+    </div>
+  );
+}
+
+const WEEK_MS = 7 * 86400000;
+const adminRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500";
+
+// Landing view for the Super Admin, built from data the other sections
+// already load (landlords, revenue, storage, login logs).
+function OverviewSection({ landlords, revenue, storageUsage, logs, onOpenLandlords }) {
+  const count = (status) => landlords.filter((l) => l.subscriptionStatus === status).length;
+  const now = Date.now();
+  const trialsEndingSoon = landlords.filter(
+    (l) => l.subscriptionStatus === "TRIAL" && l.nextBillingDate && new Date(l.nextBillingDate).getTime() - now <= WEEK_MS
+  ).length;
+  const failedLogins24h = (logs || []).filter((g) => g.action === "LOGIN_FAILED" && now - new Date(g.createdAt).getTime() <= 86400000).length;
+
+  // New landlords per week, oldest first.
+  const weeks = Array.from({ length: 6 }, (_, i) => {
+    const end = now - (5 - i) * WEEK_MS;
+    const start = end - WEEK_MS;
+    return landlords.filter((l) => {
+      const t = new Date(l.createdAt).getTime();
+      return t > start && t <= end;
+    }).length;
+  });
+  const maxWeek = Math.max(...weeks, 1);
+  const recent = [...landlords].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
+  const storage = storageUsage?.data;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,200px),1fr))] gap-4">
+        <div className="rounded-[18px] border border-[#EFE6D6] bg-white p-5">
+          <div className="text-[13px] text-site-muted">Landlords</div>
+          <div className="mt-1 font-display text-[30px] font-bold">{landlords.length}</div>
+          <div className="mt-2 text-[13px] text-site-muted">
+            {count("ACTIVE")} active, {count("TRIAL")} on trial
+          </div>
+        </div>
+        <div className="rounded-[18px] bg-brand-700 p-5 text-white">
+          <div className="text-[13px] text-[#F3D9A0]">Revenue this month</div>
+          <div className="mt-1 truncate font-display text-[30px] font-bold" title={revenue ? formatNaira(revenue.monthlyRevenue) : undefined}>
+            {revenue ? formatNairaCompact(revenue.monthlyRevenue) : "…"}
+          </div>
+          {revenue && <div className="mt-2 text-[13px] text-[#F3D9A0]">{formatNairaCompact(revenue.totalRevenue)} all time</div>}
+        </div>
+        <div className="rounded-[18px] bg-[#FBE6E6] p-5 text-[#8A1C1C]">
+          <div className="text-[13px]">Subscriptions expired</div>
+          <div className="mt-1 font-display text-[30px] font-bold">{count("EXPIRED")}</div>
+        </div>
+        <div className="rounded-[18px] bg-[#FFF1CC] p-5 text-[#6B4E00]">
+          <div className="text-[13px]">Trials</div>
+          <div className="mt-1 font-display text-[30px] font-bold">{count("TRIAL")}</div>
+          <div className="mt-2 text-[13px]">{trialsEndingSoon} ending within 7 days</div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-4">
+        <div className="min-w-0 flex-[2_1_460px] rounded-[18px] border border-[#EFE6D6] bg-white px-5 pb-3 pt-1 sm:px-6">
+          <div className="flex items-center justify-between py-3.5">
+            <h2 className="m-0 font-display text-xl font-bold">Newest landlords</h2>
+            <button onClick={onOpenLandlords} className="min-h-[44px] px-1 text-sm font-semibold text-brand-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+              View all
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="text-left text-[13px] text-site-muted">
+                  <th className="border-b border-[#EEE6D8] py-2 pr-2 font-medium">Landlord</th>
+                  <th className="hidden border-b border-[#EEE6D8] py-2 pr-2 font-medium sm:table-cell">Plan</th>
+                  <th className="border-b border-[#EEE6D8] py-2 pr-2 font-medium">Rooms</th>
+                  <th className="border-b border-[#EEE6D8] py-2 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recent.map((l) => (
+                  <tr key={l.id} className="border-b border-[#F3ECDF] last:border-b-0">
+                    <td className="py-3 pr-2">
+                      <div className="font-semibold">{l.name}</div>
+                      <div className="text-xs text-site-muted">Joined {formatDate(l.createdAt)}</div>
+                    </td>
+                    <td className="hidden py-3 pr-2 sm:table-cell">{l.plan?.name || "—"}</td>
+                    <td className="py-3 pr-2">{l.totalRooms}</td>
+                    <td className="py-3">
+                      <Badge tone={STATUS_TONE[l.subscriptionStatus]}>{STATUS_LABEL[l.subscriptionStatus] || l.subscriptionStatus}</Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-4">
+          <div className="rounded-[18px] border border-[#EFE6D6] bg-white p-5">
+            <h2 className="m-0 font-display text-xl font-bold">New landlords, last 6 weeks</h2>
+            <div
+              className="mt-4 flex h-[110px] items-end gap-2.5 border-b border-site-border"
+              role="img"
+              aria-label={`New landlord sign-ups per week, oldest to newest: ${weeks.join(", ")}`}
+            >
+              {weeks.map((n, i) => (
+                <div key={i} className="flex h-full flex-1 flex-col items-center justify-end">
+                  <span className="mb-1 text-[11px] text-site-muted">{n}</span>
+                  <div className={`w-full rounded-t-md ${i === 5 ? "bg-brand-700" : "bg-[#E6C26A]"}`} style={{ height: `${Math.max((n / maxWeek) * 80, 3)}px` }} />
+                </div>
+              ))}
+            </div>
+            <div className="mt-1.5 flex justify-between text-[11px] text-site-muted" aria-hidden="true">
+              <span>6 weeks ago</span>
+              <span>This week</span>
+            </div>
+          </div>
+
+          <div className="rounded-[18px] border border-[#EFE6D6] bg-white p-5">
+            <h2 className="m-0 font-display text-xl font-bold">Platform health</h2>
+            <dl className="m-0 mt-3 space-y-2.5 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt>Failed logins, last 24h</dt>
+                <dd className={`m-0 font-semibold ${failedLogins24h > 10 ? "text-[#8A1C1C]" : ""}`}>{logs ? failedLogins24h : "…"}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt>File storage used</dt>
+                <dd className={`m-0 font-semibold ${storage?.warning ? "text-[#8A1C1C]" : "text-[#1F6B3A]"}`}>
+                  {storage ? `${storage.usedPercent}%` : "…"}
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <p className="m-0 rounded-[14px] bg-[#F6E7BC] px-4 py-3.5 text-[13px] leading-relaxed text-[#5A4100]">
+            Super admin sees landlords, billing and counts only. Tenant records and private documents are never shown here.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -71,7 +217,7 @@ function LandlordForm({ initial, plans, onSubmit, onCancel, submitting, error })
         <select
           value={form.planId || ""}
           onChange={(e) => setForm((f) => ({ ...f, planId: e.target.value }))}
-          className="w-full rounded-xl border border-ink-200 bg-ink-50 px-3.5 py-3 text-sm text-ink-900 outline-none focus:border-violet-500 focus:bg-white"
+          className="w-full rounded-xl border border-ink-200 bg-ink-50 px-3.5 py-3 text-sm text-ink-900 outline-none focus:border-brand-700 focus:bg-white"
         >
           <option value="">No plan assigned</option>
           {plans.map((p) => (
@@ -87,7 +233,7 @@ function LandlordForm({ initial, plans, onSubmit, onCancel, submitting, error })
             <select
               value={form.subscriptionStatus}
               onChange={(e) => setForm((f) => ({ ...f, subscriptionStatus: e.target.value }))}
-              className="w-full rounded-xl border border-ink-200 bg-ink-50 px-3.5 py-3 text-sm text-ink-900 outline-none focus:border-violet-500 focus:bg-white"
+              className="w-full rounded-xl border border-ink-200 bg-ink-50 px-3.5 py-3 text-sm text-ink-900 outline-none focus:border-brand-700 focus:bg-white"
             >
               {["TRIAL", "ACTIVE", "EXPIRED", "CANCELED"].map((s) => (
                 <option key={s} value={s}>{s}</option>
@@ -106,7 +252,7 @@ function LandlordForm({ initial, plans, onSubmit, onCancel, submitting, error })
               type="checkbox"
               checked={form.automaticPaymentsEnabled}
               onChange={(e) => setForm((f) => ({ ...f, automaticPaymentsEnabled: e.target.checked }))}
-              className="mt-0.5 h-4 w-4 rounded border-ink-300 text-violet-600 focus:ring-violet-500"
+              className="mt-0.5 h-4 w-4 rounded border-ink-300 text-brand-700 focus:ring-gold-500"
             />
             <span className="text-xs text-ink-600">
               <span className="block font-semibold text-ink-800">Automatic Payments add-on</span>
@@ -120,7 +266,7 @@ function LandlordForm({ initial, plans, onSubmit, onCancel, submitting, error })
       {error && <p className="mb-4 text-sm font-medium text-red-500">{error}</p>}
       <div className="flex gap-3">
         <button type="button" onClick={onCancel} className="flex-1 rounded-xl border border-ink-200 py-2.5 text-sm font-bold text-ink-600 hover:bg-ink-50">Cancel</button>
-        <button type="submit" disabled={submitting} className="flex-1 rounded-xl bg-violet-600 py-2.5 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-60">
+        <button type="submit" disabled={submitting} className="flex-1 rounded-xl bg-brand-700 py-2.5 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-60">
           {submitting ? "Saving…" : isEdit ? "Save Changes" : "Create Landlord"}
         </button>
       </div>
@@ -144,7 +290,7 @@ function PlanForm({ plan, onSubmit, onCancel, submitting, error }) {
       {error && <p className="mb-4 text-sm font-medium text-red-500">{error}</p>}
       <div className="flex gap-3">
         <button type="button" onClick={onCancel} className="flex-1 rounded-xl border border-ink-200 py-2.5 text-sm font-bold text-ink-600 hover:bg-ink-50">Cancel</button>
-        <button type="submit" disabled={submitting} className="flex-1 rounded-xl bg-violet-600 py-2.5 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-60">
+        <button type="submit" disabled={submitting} className="flex-1 rounded-xl bg-brand-700 py-2.5 text-sm font-bold text-white hover:bg-brand-800 disabled:opacity-60">
           {submitting ? "Saving…" : "Save Plan"}
         </button>
       </div>
@@ -171,7 +317,7 @@ function PropertiesDetailSection({ landlords }) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search landlord or property…"
-          className="w-64 rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500"
+          className="w-64 rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-700"
         />
       </div>
 
@@ -179,13 +325,13 @@ function PropertiesDetailSection({ landlords }) {
         {filtered.map((l) => {
           const isOpen = !!expanded[l.id];
           return (
-            <div key={l.id} className="overflow-hidden rounded-xl bg-ink-50">
+            <div key={l.id} className="overflow-hidden rounded-[18px] border border-[#EFE6D6] bg-white">
               <button
                 onClick={() => setExpanded((e) => ({ ...e, [l.id]: !e[l.id] }))}
                 className="flex w-full items-center justify-between gap-3 p-4 text-left"
               >
                 <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-100 text-sm font-bold text-violet-700">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F6E7BC] text-sm font-bold text-brand-700">
                     {l.name.slice(0, 2).toUpperCase()}
                   </span>
                   <div>
@@ -204,7 +350,7 @@ function PropertiesDetailSection({ landlords }) {
               </button>
 
               {isOpen && (
-                <div className="divide-y divide-white border-t border-white">
+                <div className="divide-y divide-[#F3ECDF] border-t border-[#F3ECDF]">
                   {l.properties.length === 0 ? (
                     <p className="px-4 py-3 text-xs text-ink-400">No properties yet.</p>
                   ) : (
@@ -217,7 +363,7 @@ function PropertiesDetailSection({ landlords }) {
                             <FaHome size={12} className="text-ink-400" />
                           )}
                           <span className="text-sm font-semibold text-ink-800">{p.name}</span>
-                          <Badge tone={p.propertyType === "COMMERCIAL" ? "bg-ink-200 text-ink-700" : "bg-ink-100 text-ink-600"}>
+                          <Badge tone={p.propertyType === "COMMERCIAL" ? "bg-ink-200 text-ink-700" : "bg-[#EEEAE3] text-[#4A443D]"}>
                             {p.propertyType === "COMMERCIAL" ? "Commercial" : "Residential"}
                           </Badge>
                         </div>
@@ -257,7 +403,7 @@ function LandlordsSection({ landlords, plans, onCreate, onEdit, onToggleActive, 
 
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {plans.map((p) => (
-          <div key={p.id} className="rounded-xl bg-ink-50 p-4">
+          <div key={p.id} className="rounded-[18px] border border-[#EFE6D6] bg-white p-4">
             <div className="mb-1.5 flex items-center justify-between">
               <span className="text-sm font-bold text-ink-900">{p.name}</span>
             </div>
@@ -271,11 +417,11 @@ function LandlordsSection({ landlords, plans, onCreate, onEdit, onToggleActive, 
 
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-bold text-ink-900">Landlord accounts</h2>
-        <button onClick={onCreate} className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-violet-700">
+        <button onClick={onCreate} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-700 min-h-[44px] px-4 text-sm font-bold text-white hover:bg-brand-800">
           <FaPlus size={11} /> Add Landlord
         </button>
       </div>
-      <div className="overflow-x-auto rounded-xl bg-ink-50">
+      <div className="overflow-x-auto rounded-[18px] border border-[#EFE6D6] bg-white">
         <table className="w-full min-w-[820px] text-left text-sm">
           <thead>
             <tr className="text-xs font-bold uppercase text-ink-400">
@@ -290,7 +436,7 @@ function LandlordsSection({ landlords, plans, onCreate, onEdit, onToggleActive, 
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white">
+          <tbody className="divide-y divide-[#F3ECDF]">
             {landlords.map((l) => (
               <tr key={l.id}>
                 <td className="px-4 py-3">
@@ -300,7 +446,7 @@ function LandlordsSection({ landlords, plans, onCreate, onEdit, onToggleActive, 
                 <td className="px-4 py-3 text-ink-600">{l.plan?.name || "—"}</td>
                 <td className="px-4 py-3 text-ink-600">{l.totalRooms}</td>
                 <td className="px-4 py-3 text-ink-600">{l.totalTenants}</td>
-                <td className="px-4 py-3"><Badge tone={STATUS_TONE[l.subscriptionStatus]}>{l.subscriptionStatus}</Badge></td>
+                <td className="px-4 py-3"><Badge tone={STATUS_TONE[l.subscriptionStatus]}>{STATUS_LABEL[l.subscriptionStatus] || l.subscriptionStatus}</Badge></td>
                 <td className="px-4 py-3">
                   {l.automaticPaymentsEnabled ? <Badge tone="bg-green-100 text-green-700">Enabled</Badge> : <span className="text-ink-300">Off</span>}
                 </td>
@@ -308,7 +454,7 @@ function LandlordsSection({ landlords, plans, onCreate, onEdit, onToggleActive, 
                 <td className="px-4 py-3 text-ink-600">{formatDate(l.createdAt)}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-3">
-                    <button onClick={() => onEdit(l)} className="text-ink-400 hover:text-violet-600" title="Edit">
+                    <button onClick={() => onEdit(l)} className="text-ink-400 hover:text-brand-700" title="Edit">
                       <FaEdit size={13} />
                     </button>
                     <button
@@ -342,18 +488,18 @@ function formatBytes(bytes) {
 function StorageUsageCard({ usage }) {
   if (!usage) return null;
   if (!usage.data) {
-    return <div className="rounded-xl bg-ink-50 p-5 text-sm text-ink-500">{usage.error || "Storage usage unavailable."}</div>;
+    return <div className="rounded-[18px] border border-[#EFE6D6] bg-white p-5 text-sm text-ink-500">{usage.error || "Storage usage unavailable."}</div>;
   }
   const d = usage.data;
   return (
-    <div className={`rounded-xl p-5 ${d.warning ? "bg-amber-50" : "bg-ink-50"}`}>
+    <div className={`rounded-[18px] border p-5 ${d.warning ? "border-[#F2D27A] bg-[#FFF1CC]" : "border-[#EFE6D6] bg-white"}`}>
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-sm font-bold text-ink-900">Cloudinary Storage ({d.plan} plan)</h3>
         {d.warning && <span className="text-xs font-bold text-amber-700">⚠ Approaching monthly limit</span>}
       </div>
       <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-white">
         <div
-          className={`h-full rounded-full ${d.warning ? "bg-amber-500" : "bg-violet-500"}`}
+          className={`h-full rounded-full ${d.warning ? "bg-amber-500" : "bg-site-cream0"}`}
           style={{ width: `${Math.min(d.usedPercent, 100)}%` }}
         />
       </div>
@@ -373,21 +519,21 @@ function RevenueSection({ revenue, storageUsage }) {
         <StatCard label="Revenue this month" value={formatNaira(revenue.monthlyRevenue)} icon={FaMoneyBillWave} />
         <StatCard label="Total revenue (all time)" value={formatNaira(revenue.totalRevenue)} icon={FaFileInvoiceDollar} />
       </div>
-      <div className="mb-6 rounded-xl bg-ink-50 p-5">
+      <div className="mb-6 rounded-[18px] border border-[#EFE6D6] bg-white p-5">
         <h3 className="mb-3 text-sm font-bold text-ink-900">Monthly Revenue (last 12 months)</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={revenue.monthlySeries} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#7c3aed" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="#7c3aed" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#5C1010" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="#5C1010" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#8792a2" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: "#8792a2" }} axisLine={false} tickLine={false} tickFormatter={(v) => (v >= 1000 ? `₦${(v / 1000).toFixed(0)}k` : `₦${v}`)} width={50} />
               <Tooltip formatter={(value) => formatNaira(value)} />
-              <Area type="monotone" dataKey="total" stroke="#7c3aed" strokeWidth={2.5} fill="url(#revenueFill)" name="Revenue" />
+              <Area type="monotone" dataKey="total" stroke="#5C1010" strokeWidth={2.5} fill="url(#revenueFill)" name="Revenue" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -402,16 +548,16 @@ function PlansSection({ plans, onEdit, onCreate }) {
     <div>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-bold text-ink-900">Subscription Plans</h2>
-        <button onClick={onCreate} className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-violet-700">
+        <button onClick={onCreate} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-700 min-h-[44px] px-4 text-sm font-bold text-white hover:bg-brand-800">
           <FaPlus size={11} /> Add Plan
         </button>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {plans.map((p) => (
-          <div key={p.id} className="rounded-xl bg-ink-50 p-4">
+          <div key={p.id} className="rounded-[18px] border border-[#EFE6D6] bg-white p-4">
             <div className="mb-1.5 flex items-center justify-between">
               <span className="text-sm font-bold text-ink-900">{p.name}</span>
-              <button onClick={() => onEdit(p)} className="text-ink-400 hover:text-violet-600"><FaEdit size={13} /></button>
+              <button onClick={() => onEdit(p)} className="text-ink-400 hover:text-brand-700"><FaEdit size={13} /></button>
             </div>
             <p className="text-xl font-extrabold text-ink-900">
               {formatNaira(p.price)} <small className="text-xs font-normal text-ink-400">/year</small>
@@ -433,7 +579,7 @@ function ActivityLogsSection({ logs, landlords, roleFilter, setRoleFilter, landl
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500"
+            className="rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-700"
           >
             <option value="">All Roles</option>
             <option value="LANDLORD">Landlord</option>
@@ -442,7 +588,7 @@ function ActivityLogsSection({ logs, landlords, roleFilter, setRoleFilter, landl
           <select
             value={landlordFilter}
             onChange={(e) => setLandlordFilter(e.target.value)}
-            className="rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500"
+            className="rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-700"
           >
             <option value="">All Landlords</option>
             {landlords.map((l) => (
@@ -453,9 +599,9 @@ function ActivityLogsSection({ logs, landlords, roleFilter, setRoleFilter, landl
       </div>
 
       {logs.length === 0 ? (
-        <div className="rounded-xl bg-ink-50 p-8 text-center text-sm text-ink-400">No activity recorded yet.</div>
+        <div className="rounded-[18px] border border-[#EFE6D6] bg-white p-8 text-center text-sm text-ink-400">No activity recorded yet.</div>
       ) : (
-        <div className="overflow-x-auto rounded-xl bg-ink-50">
+        <div className="overflow-x-auto rounded-[18px] border border-[#EFE6D6] bg-white">
           <table className="w-full min-w-[820px] text-left text-sm">
             <thead>
               <tr className="text-xs font-bold uppercase text-ink-400">
@@ -467,12 +613,12 @@ function ActivityLogsSection({ logs, landlords, roleFilter, setRoleFilter, landl
                 <th className="px-4 py-3">IP Address</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white">
+            <tbody className="divide-y divide-[#F3ECDF]">
               {logs.map((log) => (
                 <tr key={log.id}>
                   <td className="px-4 py-3 text-ink-600">{new Date(log.createdAt).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}</td>
                   <td className="px-4 py-3 text-ink-800">{log.userName || `Unknown (${log.attemptedEmail || "no email"})`}</td>
-                  <td className="px-4 py-3"><Badge tone="bg-ink-100 text-ink-600">{log.userRole}</Badge></td>
+                  <td className="px-4 py-3"><Badge tone="bg-[#EEEAE3] text-[#4A443D]">{log.userRole}</Badge></td>
                   <td className="px-4 py-3 text-ink-600">{log.landlord?.name || "—"}</td>
                   <td className="px-4 py-3">
                     {log.action === "LOGIN_SUCCESS" ? (
@@ -497,11 +643,11 @@ function TransactionsSection({ transactions }) {
     <div>
       <h2 className="mb-3 text-sm font-bold text-ink-900">Billing Transactions</h2>
       {transactions.length === 0 ? (
-        <div className="rounded-xl bg-ink-50 p-8 text-center text-sm text-ink-400">
+        <div className="rounded-[18px] border border-[#EFE6D6] bg-white p-8 text-center text-sm text-ink-400">
           No billing transactions yet — this fills in once Paystack subscription billing is wired up.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl bg-ink-50">
+        <div className="overflow-x-auto rounded-[18px] border border-[#EFE6D6] bg-white">
           <table className="w-full min-w-[700px] text-left text-sm">
             <thead>
               <tr className="text-xs font-bold uppercase text-ink-400">
@@ -513,7 +659,7 @@ function TransactionsSection({ transactions }) {
                 <th className="px-4 py-3">Date</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white">
+            <tbody className="divide-y divide-[#F3ECDF]">
               {transactions.map((t) => (
                 <tr key={t.id}>
                   <td className="px-4 py-3">
@@ -541,7 +687,7 @@ function TransactionsSection({ transactions }) {
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
-  const [section, setSection] = useState("landlords");
+  const [section, setSection] = useState("overview");
   const [landlords, setLandlords] = useState(null);
   const [plans, setPlans] = useState([]);
   const [revenue, setRevenue] = useState(null);
@@ -585,7 +731,8 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    if (section === "revenue" && !revenue) loadRevenue();
+    if ((section === "revenue" || section === "overview") && !revenue) loadRevenue();
+    if (section === "overview" && !activityLogs) loadActivityLogs();
     if (section === "transactions" && !transactions) loadTransactions();
     if (section === "activity-logs") loadActivityLogs();
   }, [section]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -664,38 +811,63 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="flex min-h-screen bg-ink-100">
-      <div className="w-56 shrink-0 bg-white p-5">
-        <div className="mb-6 flex items-center gap-2 px-1">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600 text-white"><FaCrown size={14} /></span>
-          <span className="text-sm font-extrabold text-ink-900">RentaFlow Admin</span>
+    <div className="flex min-h-screen flex-col bg-site-cream text-site-text lg:flex-row">
+      {/* Phones: a top bar with a scrollable row of sections. lg+: deep-maroon sidebar. */}
+      <aside className="shrink-0 bg-site-deep px-4 py-4 text-[#E8DADA] lg:w-60 lg:px-4 lg:py-6">
+        <div className="flex items-center justify-between gap-3 lg:block">
+          <div className="flex items-center gap-2.5 px-2 text-white lg:pb-5">
+            <svg width="34" height="34" viewBox="0 0 36 36" aria-hidden="true">
+              <rect width="36" height="36" rx="10" fill="#D4A017" />
+              <path d="M9 18l9-7 9 7v9H9z" fill="none" stroke="#2B0808" strokeWidth="2.4" strokeLinejoin="round" />
+              <path d="M15 27v-6h6v6" fill="none" stroke="#2B0808" strokeWidth="2.4" />
+            </svg>
+            <span className="font-display text-[22px] font-bold">Admin</span>
+          </div>
+          <button onClick={logout} className={`flex min-h-[44px] items-center gap-2 rounded-xl px-3 text-sm font-medium hover:bg-[#431010] lg:hidden ${adminRing}`}>
+            <FaSignOutAlt size={13} aria-hidden="true" /> Logout
+          </button>
         </div>
-        <nav className="space-y-1">
+        <nav aria-label="Admin sections" className="-mx-1 mt-3 flex gap-1.5 overflow-x-auto px-1 pb-1 lg:mx-0 lg:mt-0 lg:flex-col lg:overflow-visible lg:px-0">
           {SECTIONS.map((s) => (
             <button
               key={s.key}
               onClick={() => setSection(s.key)}
-              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition ${
-                section === s.key ? "bg-violet-100 text-violet-700" : "text-ink-500 hover:bg-ink-50"
+              aria-current={section === s.key ? "page" : undefined}
+              className={`flex min-h-[44px] shrink-0 items-center gap-2.5 whitespace-nowrap rounded-xl px-3.5 text-left text-[15px] transition ${adminRing} ${
+                section === s.key ? "bg-[#431010] font-semibold text-white" : "font-medium hover:bg-[#431010]"
               }`}
             >
-              <s.icon size={13} /> {s.label}
+              <s.icon size={13} aria-hidden="true" /> {s.label}
             </button>
           ))}
         </nav>
-        <div className="mt-8 border-t border-ink-100 pt-4">
-          <p className="px-3 text-xs text-ink-400">{user.fullName}</p>
-          <button onClick={logout} className="mt-2 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-ink-500 hover:bg-ink-50">
-            <FaSignOutAlt size={13} /> Logout
+        <div className="mt-8 hidden border-t border-white/10 pt-4 lg:block">
+          <p className="m-0 flex items-center gap-2 px-3 text-xs text-[#F3D9A0]">
+            <FaCrown size={11} aria-hidden="true" /> {user.fullName}
+          </p>
+          <button onClick={logout} className={`mt-2 flex min-h-[44px] w-full items-center gap-2.5 rounded-xl px-3 text-left text-[15px] font-medium hover:bg-[#431010] ${adminRing}`}>
+            <FaSignOutAlt size={13} aria-hidden="true" /> Logout
           </button>
         </div>
-      </div>
+      </aside>
 
-      <div className="min-w-0 flex-1 p-7">
-        <p className="text-xs font-semibold uppercase text-ink-400">Owner Overview</p>
-        <h1 className="mb-6 text-lg font-extrabold text-ink-900">{SECTIONS.find((s) => s.key === section)?.label}</h1>
+      <main className="min-w-0 flex-1 px-4 py-6 sm:px-7 sm:py-7">
+        <p className="m-0 text-sm text-site-muted">Super admin</p>
+        <h1 className="m-0 mb-6 mt-0.5 font-display text-[30px] font-bold sm:text-[34px]">
+          {section === "overview" ? "Platform overview" : SECTIONS.find((s) => s.key === section)?.label}
+        </h1>
 
-        {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</div>}
+        {error && <div className="mb-4 rounded-xl bg-[#FBE6E6] px-4 py-3 text-sm font-medium text-[#8A1C1C]">{error}</div>}
+
+        {section === "overview" && landlords && (
+          <OverviewSection
+            landlords={landlords}
+            revenue={revenue}
+            storageUsage={storageUsage}
+            logs={activityLogs}
+            onOpenLandlords={() => setSection("landlords")}
+          />
+        )}
 
         {section === "landlords" && landlords && (
           <LandlordsSection
@@ -734,7 +906,7 @@ export default function AdminDashboard() {
         {section === "revenue" && <RevenueSection revenue={revenue} storageUsage={storageUsage} />}
         {section === "plans" && <PlansSection plans={plans} onEdit={(p) => setPlanModal({ mode: "edit", plan: p })} onCreate={() => setPlanModal({ mode: "create", plan: { name: "", roomLimit: "", price: "" } })} />}
         {section === "transactions" && transactions && <TransactionsSection transactions={transactions} />}
-      </div>
+      </main>
 
       <Modal open={!!landlordModal} title={landlordModal?.mode === "create" ? "Add Landlord" : "Edit Landlord"} onClose={() => setLandlordModal(null)}>
         {landlordModal && (
