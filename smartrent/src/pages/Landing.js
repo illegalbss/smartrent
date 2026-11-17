@@ -44,7 +44,7 @@ const FEATURES = [
   },
   {
     title: "Private by design",
-    body: "Every landlord sees only their own data, and every change is written to a history log.",
+    body: "Every landlord sees only their own data, and every payment change is written to a history log.",
     icon: icon(<path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z" />),
   },
 ];
@@ -203,9 +203,9 @@ export default function Landing() {
 
       {/* 6. Pricing teaser */}
       <section className="mx-auto max-w-[1200px] px-6 pb-6 pt-[72px] text-center">
-        <h2 className="m-0 font-display text-[clamp(30px,4vw,44px)] font-bold leading-[1.1]">Simple monthly plans.</h2>
+        <h2 className="m-0 font-display text-[clamp(30px,4vw,44px)] font-bold leading-[1.1]">Simple yearly plans.</h2>
         <p className="mx-auto mb-0 mt-3.5 max-w-[560px] text-lg leading-relaxed text-site-muted">
-          Pick a flat price based on how many units you manage.
+          One flat yearly price based on how many units you manage. No charge on rent payments.
         </p>
         <SiteButton to="/pricing" variant="outline" className="mt-6">See pricing</SiteButton>
       </section>

@@ -99,8 +99,17 @@ async function getProfile(req, res, next) {
       fallbackDueDate: tenant.dateCommencement,
     });
 
+    // Only offer "Pay rent online" when it can actually work: the landlord has
+    // the add-on, a payout account, and real Paystack keys are configured.
+    const landlord = await prisma.landlord.findUnique({
+      where: { id: tenant.landlordId },
+      select: { automaticPaymentsEnabled: true, paystackSubaccountCode: true },
+    });
+    const paystackConfigured = /^sk_(test|live)_/.test(process.env.PAYSTACK_SECRET_KEY || "") && !/replace/i.test(process.env.PAYSTACK_SECRET_KEY);
+    const onlinePaymentsAvailable = Boolean(landlord?.automaticPaymentsEnabled && landlord?.paystackSubaccountCode && paystackConfigured);
+
     const { payments, ...tenantFields } = tenant;
-    res.json({ success: true, data: { ...sanitize(tenantFields), paymentStatus } });
+    res.json({ success: true, data: { ...sanitize(tenantFields), paymentStatus, onlinePaymentsAvailable } });
   } catch (err) {
     next(err);
   }

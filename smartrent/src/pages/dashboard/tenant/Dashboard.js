@@ -202,15 +202,20 @@ export default function TenantDashboard() {
               <div className={panel}>
                 <h2 className="m-0 font-display text-lg font-bold">How to pay</h2>
                 <p className="m-0 mt-1 text-[13px] text-site-muted">
-                  Pay online below, or pay your landlord directly by transfer or cash and then let them know here.
+                  {profile.onlinePaymentsAvailable
+                    ? "Pay online below, or pay your landlord directly by transfer or cash and then let them know here."
+                    : "Pay your landlord directly by transfer, cash or POS, then let them know here so they can record it."}
                 </p>
-                <button
-                  onClick={() => setShowMethodModal(true)}
-                  disabled={paying}
-                  className={`mt-3 flex min-h-[48px] w-full items-center justify-center rounded-xl bg-gold-500 px-4 font-bold text-site-text transition disabled:opacity-60 motion-safe:enabled:hover:-translate-y-0.5 ${ring}`}
-                >
-                  {paying ? "Opening secure payment…" : `Pay rent online — ${formatNaira(profile.room.rentAmount)}`}
-                </button>
+                {/* Only shown when online payment is actually set up for this landlord. */}
+                {profile.onlinePaymentsAvailable && (
+                  <button
+                    onClick={() => setShowMethodModal(true)}
+                    disabled={paying}
+                    className={`mt-3 flex min-h-[48px] w-full items-center justify-center rounded-xl bg-gold-500 px-4 font-bold text-site-text transition disabled:opacity-60 motion-safe:enabled:hover:-translate-y-0.5 ${ring}`}
+                  >
+                    {paying ? "Opening secure payment…" : `Pay rent online — ${formatNaira(profile.room.rentAmount)}`}
+                  </button>
+                )}
                 <TellLandlord amount={Number(profile.paymentStatus?.outstanding || 0)} />
               </div>
 

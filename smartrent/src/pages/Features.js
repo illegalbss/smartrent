@@ -34,7 +34,7 @@ export default function Features() {
             <h2 className={h2}>Record a payment in three taps.</h2>
             <p className={body}>
               Pick the tenant, enter the amount, confirm. A checkmark and a receipt number appear straight away. Part-payments
-              are tracked, and nothing can be quietly deleted: corrections are recorded as voids with a reason.
+              are tracked, and mistakes are easy to fix: every edit or deletion is kept in the history log.
             </p>
           </div>
           <div className={panel} role="img" aria-label="Example payment confirmation with sample figures">
@@ -65,7 +65,7 @@ export default function Features() {
             <Eyebrow className="text-[13px]">DOCUMENTS</Eyebrow>
             <h2 className={h2}>Agreements and IDs, kept private.</h2>
             <p className={body}>
-              Files are stored privately and opened through short-lived links. Only you and your accountant can see them.
+              Files are stored privately and only open after we check who is asking. Only you and your accountant can see them.
               Tenants and shop owners never can.
             </p>
           </div>
