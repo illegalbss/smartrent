@@ -30,10 +30,44 @@ function timeAgo(dateStr) {
   return `${Math.round(hours / 24)}d ago`;
 }
 
+// "Read" is remembered per user on this device (there is no server-side read
+// state). Ids of read items are kept; anything else shows as unread.
+function readKey(user) {
+  return `rentaflow_read_notifications_${user?.role || "x"}_${user?.id || "x"}`;
+}
+function loadRead(user) {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(readKey(user))) || []);
+  } catch {
+    return new Set();
+  }
+}
+function saveRead(user, set) {
+  try {
+    // Keep the list from growing forever.
+    localStorage.setItem(readKey(user), JSON.stringify([...set].slice(-300)));
+  } catch {
+    // Storage blocked — read state just won't persist.
+  }
+}
+
 export default function Topbar({ title, subtitle }) {
-  const { isStaff } = useAuth();
+  const { isStaff, user } = useAuth();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
+  const [readIds, setReadIds] = useState(() => loadRead(user));
+
+  // Rent reminders change daily, so they're read per day, not forever.
+  const itemKey = (item) => (item.id === "rent-reminder" ? `rent-reminder-${new Date().toDateString()}` : item.id);
+  const isRead = (item) => readIds.has(itemKey(item));
+  const unreadCount = items.filter((i) => !isRead(i)).length;
+
+  function markRead(list) {
+    const next = new Set(readIds);
+    list.forEach((i) => next.add(itemKey(i)));
+    setReadIds(next);
+    saveRead(user, next);
+  }
   const wrapperRef = useRef(null);
   const today = new Date().toLocaleDateString("en-NG", { year: "numeric", month: "long", day: "numeric" });
 
@@ -106,38 +140,63 @@ export default function Topbar({ title, subtitle }) {
         <div className="relative" ref={wrapperRef}>
           <button
             onClick={() => setOpen((o) => !o)}
-            aria-label={`Notifications${items.length ? ` (${items.length})` : ""}`}
+            aria-label={`Notifications${unreadCount ? ` (${unreadCount} unread)` : ""}`}
             aria-expanded={open}
             className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-site-border bg-white text-brand-700 transition hover:border-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
           >
-            <FaBell size={15} />
-            {items.length > 0 && (
+            <FaBell size={15} aria-hidden="true" />
+            {unreadCount > 0 && (
               <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#8A1C1C] px-1 text-[10px] font-bold text-white">
-                {items.length > 9 ? "9+" : items.length}
+                {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
           </button>
 
           {open && (
-            <div className="absolute right-0 top-12 z-20 w-80 rounded-xl border border-ink-100 bg-white py-2 shadow-soft">
-              <div className="border-b border-ink-100 px-4 py-2 text-xs font-bold uppercase tracking-wide text-ink-400">
-                {isStaff ? "Open items needing attention" : "Notices & Reminders"}
+            <div className="absolute right-0 top-12 z-20 w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-site-border bg-white py-2 shadow-soft">
+              <div className="flex items-center justify-between gap-2 border-b border-[#F3ECDF] px-4 py-1.5">
+                <span className="text-xs font-bold uppercase tracking-wide text-site-muted">
+                  {isStaff ? "Needs attention" : "Notices & reminders"}
+                </span>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={() => markRead(items)}
+                    className="min-h-[36px] rounded px-1 text-xs font-semibold text-brand-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                  >
+                    Mark all as read
+                  </button>
+                )}
               </div>
               <div className="max-h-80 overflow-y-auto">
                 {items.length === 0 ? (
-                  <p className="px-4 py-6 text-center text-sm text-ink-400">Nothing new right now.</p>
+                  <p className="px-4 py-6 text-center text-sm text-site-muted">Nothing new right now.</p>
                 ) : (
-                  items.map((item) => (
-                    <Link
-                      key={item.id}
-                      to={item.link}
-                      onClick={() => setOpen(false)}
-                      className="block px-4 py-2.5 text-sm hover:bg-ink-50"
-                    >
-                      <div className="font-semibold text-ink-800">{item.text}</div>
-                      <div className="text-xs text-ink-400">{timeAgo(item.date)}</div>
-                    </Link>
-                  ))
+                  items.map((item) => {
+                    const read = isRead(item);
+                    return (
+                      <Link
+                        key={item.id}
+                        to={item.link}
+                        onClick={() => {
+                          markRead([item]);
+                          setOpen(false);
+                        }}
+                        className={`flex gap-2.5 px-4 py-2.5 text-sm hover:bg-site-cream ${read ? "" : "bg-[#FBF7F0]"}`}
+                      >
+                        <span
+                          className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${read ? "bg-transparent" : "bg-[#8A1C1C]"}`}
+                          aria-hidden="true"
+                        />
+                        <span className="min-w-0">
+                          <span className={`block ${read ? "font-normal text-site-muted" : "font-semibold text-site-text"}`}>
+                            {item.text}
+                            {!read && <span className="sr-only"> (unread)</span>}
+                          </span>
+                          <span className="block text-xs text-site-muted">{timeAgo(item.date)}</span>
+                        </span>
+                      </Link>
+                    );
+                  })
                 )}
               </div>
             </div>

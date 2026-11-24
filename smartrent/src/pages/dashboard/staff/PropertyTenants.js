@@ -21,7 +21,8 @@ import FormField from "../../../components/FormField";
 import { STAFF_NAV } from "../../../config/navigation";
 import { propertiesApi } from "../../../api/properties";
 import { tenantsApi } from "../../../api/tenants";
-import { printTenantList } from "../../../utils/tenantListReport";
+import { printHtml, buildRentCollectionHtml, buildTenantStatementHtml } from "../../../utils/printReports";
+import { paymentsApi } from "../../../api/payments";
 import { whatsappUrl, loginLinkMessage } from "../../../utils/whatsapp";
 import LoginLinksList from "../../../components/dashboard/LoginLinksList";
 
@@ -211,6 +212,8 @@ export default function PropertyTenants() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [menuOpenId, setMenuOpenId] = useState(null);
   const [confirmPrint, setConfirmPrint] = useState(false);
+  const [statementTarget, setStatementTarget] = useState(null);
+  const [preparing, setPreparing] = useState("");
   const [showLoginLinks, setShowLoginLinks] = useState(false);
 
   const [search, setSearch] = useState("");
@@ -296,9 +299,59 @@ export default function PropertyTenants() {
     }
   }
 
-  function handlePrintConfirmed() {
+  // Property Rent Collection Report: this year's payments per tenant (from
+  // the monthly ledger) plus each tenant's current balance.
+  async function handlePrintConfirmed() {
     setConfirmPrint(false);
-    printTenantList({ property, tenants: filteredSorted, isCommercial });
+    setPreparing("Preparing the rent collection report…");
+    try {
+      const now = new Date();
+      const months = Array.from({ length: now.getMonth() + 1 }, (_, i) => `${now.getFullYear()}-${String(i + 1).padStart(2, "0")}`);
+      const ledgers = await Promise.all(months.map((m) => paymentsApi.ledger(m)));
+      const paidByTenant = new Map();
+      for (const { data } of ledgers) {
+        for (const p of data.payments) {
+          if (p.status === "OWING") continue;
+          paidByTenant.set(p.tenantId, (paidByTenant.get(p.tenantId) || 0) + Number(p.amount));
+        }
+      }
+      const roomsById = new Map((property.rooms || []).map((r) => [r.id, r]));
+      const rows = filteredSorted.map((t) => {
+        const room = roomsById.get(t.room?.id);
+        const status = t.isOverdue ? "OVERDUE" : t.lastPaymentStatus || "NONE";
+        return {
+          name: t.name,
+          room: t.room?.roomNumber || "—",
+          rent: room?.rentAmount || 0,
+          rentFrequency: room?.rentFrequency || "YEARLY",
+          paid: paidByTenant.get(t.id) || 0,
+          balance: t.outstanding || 0,
+          status,
+        };
+      });
+      printHtml(
+        buildRentCollectionHtml({ property, rows, periodStart: new Date(now.getFullYear(), 0, 1), periodEnd: now, isCommercial })
+      );
+    } catch (err) {
+      setError(`Couldn't prepare the report: ${err.message}`);
+    } finally {
+      setPreparing("");
+    }
+  }
+
+  // Tenant Account Statement for one tenant (clicked by their S/N).
+  async function handleStatementConfirmed() {
+    const target = statementTarget;
+    setStatementTarget(null);
+    setPreparing(`Preparing ${target.name}'s statement…`);
+    try {
+      const { data } = await tenantsApi.get(target.id);
+      printHtml(buildTenantStatementHtml(data));
+    } catch (err) {
+      setError(`Couldn't prepare the statement: ${err.message}`);
+    } finally {
+      setPreparing("");
+    }
   }
 
   return (
@@ -314,6 +367,11 @@ export default function PropertyTenants() {
       </nav>
 
       {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</div>}
+      {preparing && (
+        <div role="status" className="mb-4 rounded-xl bg-[#F6E7BC] px-4 py-3 text-sm font-medium text-[#5A4100]">
+          {preparing}
+        </div>
+      )}
 
       {property && (
         <div className="mb-5 flex flex-col gap-4 rounded-2xl border border-ink-100 bg-white p-5 shadow-card lg:flex-row lg:items-center lg:justify-between">
@@ -411,6 +469,7 @@ export default function PropertyTenants() {
           <table className="w-full min-w-[880px] text-left text-sm">
             <thead className="border-b border-ink-100 bg-ink-50 text-xs font-bold uppercase tracking-wide text-ink-500">
               <tr>
+                <th className="px-4 py-3" title="Click a number to print that tenant's account statement">S/N</th>
                 <th className="px-4 py-3">{occupantWord}</th>
                 <th className="px-4 py-3">{isCommercial ? "Unit Number" : "Room Number"}</th>
                 <th className="px-4 py-3">Phone Number</th>
@@ -422,11 +481,23 @@ export default function PropertyTenants() {
               </tr>
             </thead>
             <tbody className="divide-y divide-ink-100">
-              {pageItems.map((t) => {
+              {pageItems.map((t, i) => {
                 const status = t.lastPaymentStatus || "NO_PAYMENTS";
                 const lease = leaseState(t);
+                const sn = (page - 1) * PAGE_SIZE + i + 1;
                 return (
                   <tr key={t.id} className="hover:bg-ink-50/60">
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => setStatementTarget(t)}
+                        title={`Print ${t.name}'s account statement`}
+                        aria-label={`${sn}: print ${t.name}'s account statement`}
+                        className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg border border-site-border bg-white font-bold text-brand-700 hover:bg-[#F6E7BC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                      >
+                        {sn}
+                      </button>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         <Avatar entity={t} photoSrc={tenantsApi.photoUrl(t.id)} size="h-9 w-9 text-xs" />
@@ -534,11 +605,19 @@ export default function PropertyTenants() {
       </Modal>
       <ConfirmDialog
         open={confirmPrint}
-        title={`Print ${occupantWord.toLowerCase()} list?`}
-        body={`This prints ${filteredSorted.length} ${filteredSorted.length === 1 ? occupantWord.toLowerCase() : occupantWordPlural.toLowerCase()} from ${property?.name || "this property"}, using your current search, filters and sort order. In the print window you can also choose "Save as PDF".`}
+        title="Print rent collection report?"
+        body={`This prints the rent collection report for ${property?.name || "this property"}: ${filteredSorted.length} ${filteredSorted.length === 1 ? occupantWord.toLowerCase() : occupantWordPlural.toLowerCase()} (your current search and filters), with payments from 1 January to today and each balance now. In the print window you can also choose "Save as PDF".`}
         confirmLabel="Yes, Print"
         onConfirm={handlePrintConfirmed}
         onCancel={() => setConfirmPrint(false)}
+      />
+      <ConfirmDialog
+        open={!!statementTarget}
+        title="Print account statement?"
+        body={`This prints ${statementTarget?.name || "this tenant"}'s account statement: their details, every payment recorded and the balance today. In the print window you can also choose "Save as PDF".`}
+        confirmLabel="Yes, Print"
+        onConfirm={handleStatementConfirmed}
+        onCancel={() => setStatementTarget(null)}
       />
     </DashboardShell>
   );
