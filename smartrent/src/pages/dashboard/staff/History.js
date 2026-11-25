@@ -19,6 +19,61 @@ const LOGIN_EVENT = {
   LOGIN_SUCCESS: { label: "Login", tone: "ink" },
   LOGIN_FAILED: { label: "Failed login", tone: "red" },
 };
+// Everything else staff do (see server/src/middleware/staffActivity.js).
+const ACTION_LABEL = {
+  TENANT_REGISTERED: "Tenant added",
+  TENANT_UPDATED: "Tenant edited",
+  TENANCY_ENDED: "Tenancy ended",
+  TENANT_DELETED: "Tenant deleted",
+  LOGIN_LINK_CREATED: "Login link created",
+  LOGIN_LINKS_GENERATED: "Login links created",
+  TENANT_PHOTO_CHANGED: "Photo changed",
+  DOCUMENT_UPLOADED: "Document uploaded",
+  AGREEMENT_GENERATED: "Agreement generated",
+  DOCUMENT_VIEWED: "Document opened",
+  DOCUMENT_DELETED: "Document deleted",
+  STATEMENT_DOWNLOADED: "Statement downloaded",
+  RECEIPT_DOWNLOADED: "Receipt downloaded",
+  INVOICE_DOWNLOADED: "Invoice downloaded",
+  PROPERTY_ADDED: "Property added",
+  PROPERTY_UPDATED: "Property edited",
+  PROPERTY_DELETED: "Property deleted",
+  PROPERTY_PHOTO_CHANGED: "Photo changed",
+  ROOM_ADDED: "Room added",
+  ROOM_UPDATED: "Room edited",
+  ROOM_DELETED: "Room deleted",
+  COMPLAINT_LOGGED: "Message logged",
+  COMPLAINT_UPDATED: "Message updated",
+  COMPLAINT_REPLIED: "Message replied",
+  MAINTENANCE_UPDATED: "Maintenance updated",
+  NOTICE_SENT: "Notice sent",
+  NOTICE_DELETED: "Notice deleted",
+  HOUSE_RULES_UPDATED: "House rules updated",
+  HOUSE_RULES_DELETED: "House rules deleted",
+  SECRETARY_INVITED: "Secretary invited",
+  SECRETARY_REMOVED: "Secretary removed",
+  PAYOUT_ACCOUNT_CHANGED: "Payout account changed",
+  PROFILE_UPDATED: "Profile updated",
+  PASSWORD_CHANGED: "Password changed",
+};
+// Red for things that remove or end something (and the payout bank account,
+// where a change redirects money); amber for edits; green for additions.
+function actionTone(action) {
+  if (/DELETED|REMOVED|ENDED|PAYOUT/.test(action)) return "red";
+  if (/UPDATED|CHANGED|REPLIED|LINK/.test(action)) return "amber";
+  if (/VIEWED|DOWNLOADED/.test(action)) return "ink";
+  return "green";
+}
+const CATEGORY_KIND = {
+  tenants: "TENANTS",
+  properties: "TENANTS",
+  documents: "DOCUMENTS",
+  downloads: "DOCUMENTS",
+  messages: "MESSAGES",
+  team: "TEAM",
+  account: "TEAM",
+};
+
 const ROLE = { LANDLORD: "Landlord", SECRETARY: "Secretary", TENANT: "Tenant" };
 
 function whenText(date) {
@@ -60,6 +115,17 @@ function paymentEntry(log, tenantNames) {
   };
 }
 
+function staffEntry(log) {
+  return {
+    id: `s-${log.id}`,
+    kind: CATEGORY_KIND[log.category] || "TEAM",
+    at: log.createdAt,
+    who: `${log.actorName} (${ROLE[log.actorRole] || log.actorRole})`,
+    event: { label: ACTION_LABEL[log.action] || log.action, tone: actionTone(log.action) },
+    details: log.summary + (log.ipAddress ? ` · IP ${log.ipAddress}` : ""),
+  };
+}
+
 function loginEntry(log) {
   const who = log.userName ? `${log.userName} (${ROLE[log.userRole] || log.userRole})` : `Unknown (${log.attemptedEmail || "no email"})`;
   return {
@@ -89,6 +155,7 @@ export default function History() {
   const isLandlord = user.role === "landlord";
   const [entries, setEntries] = useState(null);
   const [filter, setFilter] = useState("ALL");
+  const [person, setPerson] = useState("ALL");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -97,10 +164,13 @@ export default function History() {
       tenantsApi.list({ limit: 500 }).catch(() => ({ data: [] })),
       // Login records are the landlord's own account security — not shown to secretaries.
       isLandlord ? api.get("/landlord/login-activity").catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+      // The full record of staff actions is for the landlord only, so a
+      // secretary can't see (or work around) what is being recorded.
+      isLandlord ? api.get("/landlord/activity").catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
     ])
-      .then(([audit, tenants, logins]) => {
+      .then(([audit, tenants, logins, activity]) => {
         const names = new Map(tenants.data.map((t) => [t.id, t.name]));
-        const all = [...audit.data.map((l) => paymentEntry(l, names)), ...logins.data.map(loginEntry)];
+        const all = [...audit.data.map((l) => paymentEntry(l, names)), ...logins.data.map(loginEntry), ...activity.data.map(staffEntry)];
         all.sort((a, b) => new Date(b.at) - new Date(a.at));
         setEntries(all);
       })
@@ -110,13 +180,42 @@ export default function History() {
   const filters = [
     { key: "ALL", label: "Everything" },
     { key: "PAYMENTS", label: "Payments" },
-    ...(isLandlord ? [{ key: "LOGINS", label: "Logins" }] : []),
+    ...(isLandlord
+      ? [
+          { key: "TENANTS", label: "Tenants & rooms" },
+          { key: "DOCUMENTS", label: "Documents" },
+          { key: "MESSAGES", label: "Messages & notices" },
+          { key: "TEAM", label: "Team & account" },
+          { key: "LOGINS", label: "Logins" },
+        ]
+      : []),
   ];
-  const visible = useMemo(() => (entries || []).filter((e) => filter === "ALL" || e.kind === filter), [entries, filter]);
+  const people = useMemo(() => [...new Set((entries || []).map((e) => e.who))].sort(), [entries]);
+  const visible = useMemo(
+    () => (entries || []).filter((e) => (filter === "ALL" || e.kind === filter) && (person === "ALL" || e.who === person)),
+    [entries, filter, person]
+  );
 
   return (
     <DashboardShell navItems={STAFF_NAV} title="History log" subtitle="Who did what, and when">
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
+        {isLandlord && people.length > 1 && (
+          <label className="flex items-center gap-2 text-sm font-semibold text-site-text">
+            Person
+            <select
+              value={person}
+              onChange={(e) => setPerson(e.target.value)}
+              className={`min-h-[44px] rounded-xl border-[1.5px] border-[#D9CFBD] bg-white px-3 text-sm font-medium ${ring}`}
+            >
+              <option value="ALL">Everyone</option>
+              {people.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <button
           onClick={() => exportCsv(visible)}
           disabled={!visible.length}
@@ -128,7 +227,11 @@ export default function History() {
 
       <div className="flex items-start gap-3 rounded-[14px] bg-[#F6E7BC] px-4 py-3.5 text-sm leading-relaxed text-[#5A4100]">
         <FaLock size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
-        <span>This log is read-only. Entries cannot be edited or deleted by anyone, including you.</span>
+        <span>
+          This log is read-only. Entries cannot be edited or deleted by anyone, including you.
+          {isLandlord &&
+            " Every change made by you or your secretaries is recorded automatically — payments, tenants, rooms and rent, documents (including who opened them), messages, notices and team changes."}
+        </span>
       </div>
 
       <div className="mt-[18px] flex flex-wrap gap-2" role="group" aria-label="Filter history">
@@ -153,7 +256,7 @@ export default function History() {
           <p className="py-4 text-sm text-site-muted">Loading history…</p>
         ) : visible.length === 0 ? (
           <div className="py-3">
-            <EmptyState icon={FaHistory} title="Nothing here yet" body="Payments recorded, edited or deleted will appear here." />
+            <EmptyState icon={FaHistory} title="Nothing here yet" body={isLandlord ? "Every change made by you or your secretaries will appear here." : "Payments recorded, edited or deleted will appear here."} />
           </div>
         ) : (
           <>

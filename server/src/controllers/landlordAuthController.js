@@ -163,4 +163,24 @@ async function listLoginActivity(req, res, next) {
   }
 }
 
-module.exports = { signup, login, getProfile, updateProfile, changePassword, listLoginActivity };
+// Everything the landlord and their secretaries did (see middleware/staffActivity).
+// Append-only: there is no route to edit or delete these rows.
+async function listStaffActivity(req, res, next) {
+  try {
+    const take = Math.min(Math.max(parseInt(req.query.limit, 10) || 500, 1), 2000);
+    const rows = await prisma.staffActivity.findMany({
+      where: { landlordId: req.auth.id },
+      orderBy: { createdAt: "desc" },
+      take,
+      select: {
+        id: true, actorId: true, actorRole: true, actorName: true, action: true, category: true,
+        summary: true, entityId: true, details: true, ipAddress: true, createdAt: true,
+      },
+    });
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { signup, login, getProfile, updateProfile, changePassword, listLoginActivity, listStaffActivity };

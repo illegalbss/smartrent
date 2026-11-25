@@ -194,6 +194,30 @@ model ActivityLog {
   @@map("activity_logs")
 }
 
+// Append-only record of every change a landlord or secretary makes (and of
+// sensitive reads such as opening a private document), so the landlord can
+// see exactly who did what. The app has no way to edit or delete these rows.
+// Payment create/edit/delete keep their richer trail in PaymentAuditLog.
+model StaffActivity {
+  id         String    @id @default(cuid())
+  landlordId String    @map("landlord_id")
+  actorId    String    @map("actor_id")
+  actorRole  ActorRole @map("actor_role")
+  actorName  String    @map("actor_name")
+  action     String // e.g. TENANT_DELETED, ROOM_UPDATED, DOCUMENT_VIEWED
+  category   String // tenants | properties | documents | messages | team | account | downloads
+  summary    String // plain-language sentence shown in the History log
+  entityId   String?   @map("entity_id")
+  details    Json?
+  ipAddress  String?   @map("ip_address")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  landlord Landlord @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+
+  @@index([landlordId, createdAt])
+  @@map("staff_activities")
+}
+
 model Landlord {
   id                       String             @id @default(cuid())
   name                     String
@@ -238,6 +262,7 @@ model Landlord {
   paystackTransactions PaystackTransaction[]
   billingTransactions  BillingTransaction[]
   activityLogs         ActivityLog[]
+  staffActivities      StaffActivity[]
 
   @@index([planId])
   @@map("landlords")

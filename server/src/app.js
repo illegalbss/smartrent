@@ -3,6 +3,7 @@ const cors = require("cors");
 const morgan = require("morgan");
 const helmet = require("helmet");
 const routes = require("./routes");
+const { staffActivity } = require("./middleware/staffActivity");
 const { apiLimiter } = require("./middleware/rateLimit");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
 
@@ -39,7 +40,7 @@ app.use(
 app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(morgan("dev"));
 
-app.use("/api/v1", apiLimiter, routes);
+app.use("/api/v1", apiLimiter, staffActivity, routes);
 
 app.use(notFound);
 app.use(errorHandler);
