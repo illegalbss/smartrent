@@ -7,6 +7,7 @@ import { paymentsApi } from "../../../api/payments";
 import { tenantsApi } from "../../../api/tenants";
 import { api } from "../../../api/client";
 import { useAuth } from "../../../context/AuthContext";
+import { logPrint } from "../../../utils/printReports";
 
 const ring = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500";
 
@@ -35,6 +36,8 @@ const ACTION_LABEL = {
   STATEMENT_DOWNLOADED: "Statement downloaded",
   RECEIPT_DOWNLOADED: "Receipt downloaded",
   INVOICE_DOWNLOADED: "Invoice downloaded",
+  PRINTED: "Printed / exported",
+  SECRETARY_JOINED: "Secretary joined",
   PROPERTY_ADDED: "Property added",
   PROPERTY_UPDATED: "Property edited",
   PROPERTY_DELETED: "Property deleted",
@@ -61,7 +64,7 @@ const ACTION_LABEL = {
 function actionTone(action) {
   if (/DELETED|REMOVED|ENDED|PAYOUT/.test(action)) return "red";
   if (/UPDATED|CHANGED|REPLIED|LINK/.test(action)) return "amber";
-  if (/VIEWED|DOWNLOADED/.test(action)) return "ink";
+  if (/VIEWED|DOWNLOADED|PRINTED/.test(action)) return "ink";
   return "green";
 }
 const CATEGORY_KIND = {
@@ -148,6 +151,7 @@ function exportCsv(rows) {
   a.download = `RentaFlow-history-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+  logPrint("HISTORY_CSV", `${rows.length} entries`);
 }
 
 export default function History() {

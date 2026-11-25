@@ -21,7 +21,7 @@ import FormField from "../../../components/FormField";
 import { STAFF_NAV } from "../../../config/navigation";
 import { propertiesApi } from "../../../api/properties";
 import { tenantsApi } from "../../../api/tenants";
-import { printHtml, buildRentCollectionHtml, buildTenantStatementHtml } from "../../../utils/printReports";
+import { printHtml, buildRentCollectionHtml, buildTenantStatementHtml, logPrint } from "../../../utils/printReports";
 import { paymentsApi } from "../../../api/payments";
 import { whatsappUrl, loginLinkMessage } from "../../../utils/whatsapp";
 import LoginLinksList from "../../../components/dashboard/LoginLinksList";
@@ -332,6 +332,7 @@ export default function PropertyTenants() {
       printHtml(
         buildRentCollectionHtml({ property, rows, periodStart: new Date(now.getFullYear(), 0, 1), periodEnd: now, isCommercial })
       );
+      logPrint("RENT_COLLECTION_REPORT", `${property.name} (${rows.length} ${rows.length === 1 ? "tenant" : "tenants"})`);
     } catch (err) {
       setError(`Couldn't prepare the report: ${err.message}`);
     } finally {
@@ -347,6 +348,7 @@ export default function PropertyTenants() {
     try {
       const { data } = await tenantsApi.get(target.id);
       printHtml(buildTenantStatementHtml(data));
+      logPrint("TENANT_STATEMENT", data.name);
     } catch (err) {
       setError(`Couldn't prepare the statement: ${err.message}`);
     } finally {

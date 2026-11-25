@@ -6,9 +6,41 @@ import { complaintsApi } from "../../api/complaints";
 import { maintenanceApi } from "../../api/maintenance";
 import { noticesApi } from "../../api/notices";
 import { api } from "../../api/client";
+import { paymentsApi } from "../../api/payments";
 import { formatNaira } from "./UiKit";
 
 const REMINDER_WINDOW_DAYS = 7;
+const ALERT_WINDOW_DAYS = 30;
+
+// Secretary actions a landlord should hear about straight away, not only
+// when they happen to open the history log.
+const ALERT_ACTIONS = /DELETED|REMOVED|TENANCY_ENDED|PAYOUT|ROOM_UPDATED|PRINTED|SECRETARY_JOINED/;
+
+async function secretaryAlerts() {
+  const since = Date.now() - ALERT_WINDOW_DAYS * 86400000;
+  const [activity, audit] = await Promise.all([
+    api.get("/landlord/activity?limit=300").catch(() => ({ data: [] })),
+    paymentsApi.auditLog().catch(() => ({ data: [] })),
+  ]);
+  const recent = (d) => new Date(d).getTime() >= since;
+  return [
+    ...activity.data
+      .filter((a) => a.actorRole === "SECRETARY" && ALERT_ACTIONS.test(a.action) && recent(a.createdAt))
+      .map((a) => ({ id: `a-${a.id}`, text: `${a.actorName}: ${a.summary}`, link: "/dashboard/staff/history", date: a.createdAt })),
+    ...audit.data
+      .filter((l) => l.performedByRole === "SECRETARY" && l.action !== "CREATED" && recent(l.createdAt))
+      .map((l) => {
+        const amount = l.previousData?.amount ?? l.newData?.amount;
+        const verb = l.action === "DELETED" ? "deleted" : "edited";
+        return {
+          id: `pa-${l.id}`,
+          text: `${l.performedByName} ${verb} a payment${amount !== undefined ? ` of ${formatNaira(amount)}` : ""}`,
+          link: "/dashboard/staff/history",
+          date: l.createdAt,
+        };
+      }),
+  ];
+}
 
 function initials(name) {
   return (name || "?")
@@ -89,9 +121,10 @@ export default function Topbar({ title, subtitle }) {
     async function load() {
       try {
         if (isStaff) {
-          const [complaints, maintenance] = await Promise.all([
+          const [complaints, maintenance, alerts] = await Promise.all([
             complaintsApi.listForStaff("OPEN"),
             maintenanceApi.listForStaff("PENDING"),
+            user?.role === "landlord" ? secretaryAlerts() : Promise.resolve([]),
           ]);
           if (cancelled) return;
           const combined = [
@@ -107,6 +140,7 @@ export default function Topbar({ title, subtitle }) {
               link: "/dashboard/staff/maintenance",
               date: m.createdAt,
             })),
+            ...alerts,
           ].sort((a, b) => new Date(b.date) - new Date(a.date));
           setItems(combined);
         } else {
@@ -129,7 +163,7 @@ export default function Topbar({ title, subtitle }) {
     return () => {
       cancelled = true;
     };
-  }, [isStaff]);
+  }, [isStaff, user?.role]);
 
   useEffect(() => {
     function handleClickOutside(e) {

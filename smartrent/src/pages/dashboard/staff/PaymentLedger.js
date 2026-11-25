@@ -5,6 +5,7 @@ import DashboardShell from "../../../components/dashboard/DashboardShell";
 import { Badge, EmptyState, formatDate, formatNaira } from "../../../components/dashboard/UiKit";
 import { STAFF_NAV } from "../../../config/navigation";
 import { paymentsApi } from "../../../api/payments";
+import { logPrint } from "../../../utils/printReports";
 
 const ring = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500";
 
@@ -49,6 +50,7 @@ function exportCsv(month, payments) {
   a.download = `RentaFlow-payments-${month}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+  logPrint("PAYMENTS_CSV", `${month}, ${payments.length} payments`);
 }
 
 function MethodSplit({ payments }) {

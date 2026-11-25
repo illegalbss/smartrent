@@ -1,3 +1,4 @@
+import { api } from "../api/client";
 // Printable, branded documents (rent collection report, tenant statement).
 // Rendered into a hidden iframe and handed to the browser's print dialog,
 // which also offers "Save as PDF" — nothing is uploaded anywhere.
@@ -269,4 +270,10 @@ export function printHtml(html) {
     // Fallback for browsers that don't fire afterprint on iframes.
     setTimeout(() => iframe.isConnected && iframe.remove(), 60000);
   }, 250);
+}
+
+// Tells the server a report was printed or exported, so it shows in the
+// landlord's history log. Never blocks or breaks the print itself.
+export function logPrint(kind, label) {
+  api.post("/activity/print", { kind, label }).catch(() => {});
 }

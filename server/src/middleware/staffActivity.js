@@ -22,6 +22,13 @@ const DOC_TYPE = {
   OTHER: "document",
 };
 
+const PRINT_KIND = {
+  TENANT_STATEMENT: "Printed a tenant account statement",
+  RENT_COLLECTION_REPORT: "Printed the rent collection report",
+  PAYMENTS_CSV: "Exported payments to a spreadsheet (CSV)",
+  HISTORY_CSV: "Exported the history log to a spreadsheet (CSV)",
+};
+
 // --- lookups used by `before` ----------------------------------------------
 const tenantInfo = (id) =>
   prisma.tenant.findUnique({
@@ -308,6 +315,27 @@ const RULES = [
     summary: ({ body }) =>
       `Changed the payout bank account — online rent now goes to ${body.businessName}, account ending ${String(body.accountNumber || "").slice(-4)}`,
   }),
+  R("POST", "^/auth/secretary/accept-invite$", {
+    action: "SECRETARY_JOINED",
+    category: "team",
+    // Not logged in yet when this runs — the actor is the secretary who just joined.
+    actor: ({ res }) =>
+      res?.secretary && { id: res.secretary.id, role: "secretary", landlordId: res.secretary.landlordId, name: res.secretary.name },
+    summary: ({ res }) => `${res?.secretary?.name} accepted the invite and set a password (first login)`,
+    entity: ({ res }) => res?.secretary?.id,
+  }),
+
+  // Printing and exports happen in the browser; the page tells us about them here.
+  R("POST", "^/activity/print$", {
+    action: "PRINTED",
+    category: "downloads",
+    summary: ({ body }) => {
+      const what = PRINT_KIND[body.kind] || "Printed a report";
+      const label = typeof body.label === "string" ? body.label.slice(0, 200) : "";
+      return label ? `${what}: ${label}` : what;
+    },
+  }),
+
   R("PUT", "^/(landlord|secretary)/profile$", {
     action: "PROFILE_UPDATED",
     category: "account",
@@ -346,10 +374,11 @@ function staffActivity(req, res, next) {
 
   res.on("finish", async () => {
     try {
-      const auth = req.auth;
-      if (!auth || (auth.role !== "landlord" && auth.role !== "secretary")) return;
       if (res.statusCode >= 400) return;
       const ctx = { p, body: req.body || {}, res: resBody?.data, pre: req._activityBefore };
+      const auth = rule.actor ? rule.actor(ctx) : req.auth;
+      if (!auth || (auth.role !== "landlord" && auth.role !== "secretary") || !auth.id) return;
+      if (auth.name) nameCache.set(`${auth.role}:${auth.id}`, auth.name);
       const landlordId = auth.role === "landlord" ? auth.id : auth.landlordId;
       await prisma.staffActivity.create({
         data: {

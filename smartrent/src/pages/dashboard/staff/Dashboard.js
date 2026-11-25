@@ -20,6 +20,7 @@ import {
   FaBolt,
   FaEdit,
   FaTrash,
+  FaEye,
 } from "react-icons/fa";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
 import { Badge, EmptyState, formatNaira, formatNairaCompact } from "../../../components/dashboard/UiKit";
@@ -33,6 +34,7 @@ import { payoutApi } from "../../../api/payout";
 import { paymentsApi } from "../../../api/payments";
 import { maintenanceApi } from "../../../api/maintenance";
 import { useAuth } from "../../../context/AuthContext";
+import { api } from "../../../api/client";
 
 const OWNERSHIP_FILTERS = [
   { value: "ALL", label: "Both" },
@@ -345,6 +347,38 @@ const ACTIVITY = {
   DELETED: { icon: FaTrash, cls: "text-[#8A1C1C]", verb: "Payment deleted" },
 };
 
+const ROLE_WORD = { LANDLORD: "landlord", SECRETARY: "secretary" };
+
+// One shape for both payment-audit rows and the wider staff activity log.
+function activityItems(auditLogs, staffActivity) {
+  if (auditLogs === null || staffActivity === null) return null;
+  const payments = auditLogs.map((log) => {
+    const a = ACTIVITY[log.action] || ACTIVITY.EDITED;
+    const amount = log.newData?.amount ?? log.previousData?.amount;
+    return {
+      id: `p-${log.id}`,
+      icon: a.icon,
+      cls: a.cls,
+      title: `${a.verb}${amount !== undefined ? ` — ${formatNaira(amount)}` : ""}`,
+      at: log.createdAt,
+      by: `${log.performedByName}${ROLE_WORD[log.performedByRole] ? ` (${ROLE_WORD[log.performedByRole]})` : ""}`,
+    };
+  });
+  const others = staffActivity.map((a) => {
+    const red = /DELETED|REMOVED|ENDED|PAYOUT/.test(a.action);
+    const look = /VIEWED|DOWNLOADED|PRINTED/.test(a.action);
+    return {
+      id: `s-${a.id}`,
+      icon: red ? FaTrash : look ? FaEye : /ADDED|REGISTERED|UPLOADED|SENT|INVITED|JOINED|GENERATED|LOGGED/.test(a.action) ? FaCheckCircle : FaEdit,
+      cls: red ? "text-[#8A1C1C]" : look ? "text-site-muted" : "text-[#8C670C]",
+      title: a.summary,
+      at: a.createdAt,
+      by: `${a.actorName} (${ROLE_WORD[a.actorRole] || "staff"})`,
+    };
+  });
+  return [...payments, ...others].sort((x, y) => new Date(y.at) - new Date(x.at));
+}
+
 function RecentActivity({ logs }) {
   return (
     <div className={panel}>
@@ -359,23 +393,19 @@ function RecentActivity({ logs }) {
       {logs === null ? (
         <p className="m-0 mt-3 text-sm text-site-muted">Loading…</p>
       ) : logs.length === 0 ? (
-        <p className="m-0 mt-3 text-sm text-site-muted">No payment activity yet.</p>
+        <p className="m-0 mt-3 text-sm text-site-muted">No activity yet.</p>
       ) : (
         <ul className="m-0 mt-2 list-none p-0">
-          {logs.slice(0, 4).map((log) => {
-            const a = ACTIVITY[log.action] || ACTIVITY.EDITED;
-            const amount = log.newData?.amount ?? log.previousData?.amount;
+          {logs.slice(0, 5).map((item) => {
+            const Icon = item.icon;
             return (
-              <li key={log.id} className="flex gap-3 border-t border-[#F3ECDF] py-2.5 first:border-t-0">
-                <a.icon size={18} className={`mt-0.5 shrink-0 ${a.cls}`} aria-hidden="true" />
+              <li key={item.id} className="flex gap-3 border-t border-[#F3ECDF] py-2.5 first:border-t-0">
+                <Icon size={18} className={`mt-0.5 shrink-0 ${item.cls}`} aria-hidden="true" />
                 <div className="min-w-0 flex-1 text-sm">
-                  <div className="font-semibold">
-                    {a.verb}
-                    {amount !== undefined ? ` — ${formatNaira(amount)}` : ""}
-                  </div>
+                  <div className="font-semibold [overflow-wrap:anywhere]">{item.title}</div>
                   <div className="flex flex-wrap justify-between gap-x-3 text-xs text-site-muted">
-                    <span>{timeAgo(log.createdAt)}</span>
-                    <span>by {log.performedByName}</span>
+                    <span>{timeAgo(item.at)}</span>
+                    <span>by {item.by}</span>
                   </div>
                 </div>
               </li>
@@ -467,6 +497,7 @@ export default function StaffDashboard() {
   const [error, setError] = useState("");
   const [payoutStatus, setPayoutStatus] = useState(null);
   const [auditLogs, setAuditLogs] = useState(null);
+  const [staffActivity, setStaffActivity] = useState(null);
   const [pendingMaintenance, setPendingMaintenance] = useState(0);
 
   useEffect(() => {
@@ -484,6 +515,14 @@ export default function StaffDashboard() {
       .listForStaff("PENDING")
       .then((res) => setPendingMaintenance(res.data.length))
       .catch(() => {});
+    if (user.role === "landlord") {
+      api
+        .get("/landlord/activity?limit=20")
+        .then((res) => setStaffActivity(res.data))
+        .catch(() => setStaffActivity([]));
+    } else {
+      setStaffActivity([]);
+    }
     if (user.role === "landlord") {
       payoutApi.status().then((res) => setPayoutStatus(res.data)).catch(() => {});
     }
@@ -581,7 +620,7 @@ export default function StaffDashboard() {
             <PropertiesOverview properties={properties || []} />
             <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
               <AttentionRequired arrears={data.finance.tenantsInArrears} totalOwing={data.finance.totalOwing} pendingMaintenance={pendingMaintenance} />
-              <RecentActivity logs={auditLogs} />
+              <RecentActivity logs={activityItems(auditLogs, staffActivity)} />
             </div>
           </div>
 
