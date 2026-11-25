@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { FaBuilding, FaArrowRight, FaSearch, FaWhatsapp } from "react-icons/fa";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
 import { Badge, EmptyState, formatNairaCompact, formatNaira, formatDate } from "../../../components/dashboard/UiKit";
@@ -202,7 +202,12 @@ export default function Tenants() {
   const [properties, setProperties] = useState(null);
   const [tenants, setTenants] = useState(null);
   const [error, setError] = useState("");
-  const [search, setSearch] = useState("");
+  // The top bar's search sends people here with ?q=…
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get("q") || "");
+  useEffect(() => {
+    setSearch(searchParams.get("q") || "");
+  }, [searchParams]);
   const [filter, setFilter] = useState("ALL");
   const [selectedId, setSelectedId] = useState(null);
   const panelRef = useRef(null);

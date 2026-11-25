@@ -46,9 +46,27 @@ function summarizePayments(payments) {
     monthlySeries.push({ month: label, total: Math.round(total * 100) / 100 });
   }
 
+  // January–December of the current year, for the year-at-a-glance chart.
+  const yearSeries = [];
+  let collectedThisYear = 0;
+  for (let m = 0; m < 12; m++) {
+    const total = payments
+      .filter((p) => {
+        if (p.status === "OWING") return false;
+        const d = new Date(p.datePaid);
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === m;
+      })
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+    collectedThisYear += total;
+    const label = new Date(Date.UTC(now.getFullYear(), m, 1)).toLocaleDateString("en-NG", { month: "short", timeZone: "UTC" });
+    yearSeries.push({ month: label, total: Math.round(total * 100) / 100 });
+  }
+
   return {
     totalCollected: Math.round(totalCollected * 100) / 100,
     collectedThisMonth: Math.round(collectedThisMonth * 100) / 100,
+    collectedThisYear: Math.round(collectedThisYear * 100) / 100,
+    yearSeries,
     totalOwing: Math.round(byStatus.OWING.total * 100) / 100,
     byStatus,
     bySource,

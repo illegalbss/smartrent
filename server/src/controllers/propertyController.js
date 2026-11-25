@@ -69,7 +69,7 @@ async function listProperties(req, res, next) {
     const data = properties.map((p) => {
       const totalRooms = p.rooms.length;
       const occupiedRooms = p.rooms.filter((r) => r.status === "OCCUPIED").length;
-      const { collectedThisMonth } = summarizePayments(paymentsByProperty.get(p.id) || []);
+      const { collectedThisMonth, collectedThisYear } = summarizePayments(paymentsByProperty.get(p.id) || []);
       const { rooms, ...rest } = p;
       return withPhotoFlag({
         ...rest,
@@ -79,6 +79,7 @@ async function listProperties(req, res, next) {
         occupancyRate: totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 1000) / 10 : 0,
         tenantCount: tenantCountByProperty.get(p.id) || 0,
         monthlyIncome: collectedThisMonth,
+        collectedThisYear,
         outstanding: Math.round((outstandingByProperty.get(p.id) || 0) * 100) / 100,
       });
     });

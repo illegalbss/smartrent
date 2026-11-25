@@ -1,6 +1,26 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaBuilding, FaArrowRight, FaDoorOpen, FaCheckCircle, FaExclamationTriangle } from "react-icons/fa";
+import {
+  FaBuilding,
+  FaArrowRight,
+  FaDoorOpen,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaExclamationCircle,
+  FaHome,
+  FaUsers,
+  FaMoneyBillWave,
+  FaChevronRight,
+  FaCalendarAlt,
+  FaPlus,
+  FaCreditCard,
+  FaTools,
+  FaChartBar,
+  FaChartPie,
+  FaBolt,
+  FaEdit,
+  FaTrash,
+} from "react-icons/fa";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
 import { Badge, EmptyState, formatNaira, formatNairaCompact } from "../../../components/dashboard/UiKit";
 import FinanceReportSection from "../../../components/dashboard/FinanceReportSection";
@@ -11,6 +31,7 @@ import { dashboardApi } from "../../../api/dashboard";
 import { propertiesApi } from "../../../api/properties";
 import { payoutApi } from "../../../api/payout";
 import { paymentsApi } from "../../../api/payments";
+import { maintenanceApi } from "../../../api/maintenance";
 import { useAuth } from "../../../context/AuthContext";
 
 const OWNERSHIP_FILTERS = [
@@ -19,17 +40,10 @@ const OWNERSHIP_FILTERS = [
   { value: "PERSONAL", label: "Personal" },
 ];
 
-const ARREARS_CHIP = {
-  OWING: { tone: "red", label: "Owing" },
-  PARTIAL: { tone: "amber", label: "Part-paid" },
-  NO_PAYMENTS: { tone: "ink", label: "No payments" },
-};
-
-const AUDIT_VERB = { CREATED: "recorded", EDITED: "edited a payment of", DELETED: "deleted a payment of" };
-
+const ring = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500";
 const panel = "min-w-0 rounded-[18px] border border-[#EFE6D6] bg-white p-5 sm:p-6";
-const panelTitle = "m-0 font-display text-xl font-bold text-site-text";
-const textLink = "rounded font-semibold text-brand-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500";
+const panelTitle = "m-0 flex items-center gap-2.5 font-display text-xl font-bold text-site-text";
+const textLink = `inline-flex items-center gap-1.5 rounded font-semibold text-brand-700 hover:underline ${ring}`;
 
 function greetingNow() {
   const hour = new Date().getHours();
@@ -37,103 +51,72 @@ function greetingNow() {
 }
 
 function timeAgo(dateStr) {
-  const mins = Math.round((Date.now() - new Date(dateStr).getTime()) / 60000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins} min ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours} h ago`;
-  const days = Math.round(hours / 24);
-  return days === 1 ? "Yesterday" : `${days} days ago`;
+  const d = new Date(dateStr);
+  const mins = Math.round((Date.now() - d.getTime()) / 60000);
+  const time = d.toLocaleTimeString("en-NG", { hour: "numeric", minute: "2-digit" });
+  if (mins < 60 * 24 && d.toDateString() === new Date().toDateString()) return `Today, ${time}`;
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return `Yesterday, ${time}`;
+  return d.toLocaleDateString("en-NG", { day: "numeric", month: "short" });
 }
 
-function PropertyThumb({ property }) {
-  const icon = (
-    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#F6E7BC] text-brand-700">
-      <FaBuilding size={18} />
-    </div>
-  );
-  if (!property.hasPhoto) return icon;
-  return (
-    <div className="h-12 w-12 overflow-hidden rounded-xl bg-[#F6E7BC]">
-      <AuthImage src={propertiesApi.photoUrl(property.id)} alt={property.name} className="h-full w-full object-cover" fallback={icon} />
-    </div>
-  );
-}
-
-// Each property gets its own card — deliberately not combined with any other
-// property, so occupancy/tenant counts are never ambiguous about which
-// building they belong to.
-function PropertyOverviewCard({ property }) {
+// --- Headline cards ---------------------------------------------------------
+function KpiCard({ to, icon: Icon, label, value, title, tone = "plain" }) {
+  const tones = {
+    plain: { card: "border-[#EFE6D6] bg-white", icon: "text-brand-700", value: "text-site-text", chev: "bg-[#F6E7BC] text-brand-700" },
+    green: { card: "border-[#EFE6D6] bg-white", icon: "text-[#1F6B3A]", value: "text-site-text", chev: "bg-[#E3F2E7] text-[#1F6B3A]" },
+    red: { card: "border-[#F2C9C9] bg-[#FDF1F1]", icon: "text-[#8A1C1C]", value: "text-[#8A1C1C]", chev: "bg-[#FBE6E6] text-[#8A1C1C]" },
+  }[tone];
   return (
     <Link
-      to={`/dashboard/staff/properties/${property.id}`}
-      className="block rounded-[18px] border border-[#EFE6D6] bg-white p-5 transition-[transform,box-shadow] duration-200 hover:shadow-[0_12px_28px_rgba(60,10,10,0.12)] motion-safe:hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+      to={to}
+      className={`flex min-w-0 items-center gap-3.5 rounded-[18px] border p-4 transition-[transform,box-shadow] duration-200 hover:shadow-[0_10px_24px_rgba(60,10,10,0.10)] motion-safe:hover:-translate-y-0.5 ${tones.card} ${ring}`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <PropertyThumb property={property} />
-          <div className="min-w-0">
-            <h3 className="m-0 text-[15px] font-bold text-site-text">{property.name}</h3>
-            <p className="m-0 line-clamp-2 text-xs text-site-muted">{property.address}</p>
-          </div>
-        </div>
-        <Badge tone={property.ownershipType === "ORGANIZATION" ? "brand" : "ink"}>
-          {property.ownershipType === "ORGANIZATION" ? "Organization" : "Personal"}
-        </Badge>
-      </div>
-
-      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-        {[
-          { label: "Rooms", value: property.totalRooms, color: "text-site-text" },
-          { label: "Occupied", value: property.occupiedRooms, color: "text-[#1F6B3A]" },
-          { label: "Tenants", value: property.tenantCount, color: "text-site-text" },
-        ].map((s) => (
-          <div key={s.label} className="rounded-xl bg-site-cream py-2">
-            <div className={`text-lg font-bold ${s.color}`}>{s.value}</div>
-            <div className="text-[10px] font-semibold uppercase text-site-muted">{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-3">
-        <div className="mb-1 flex items-center justify-between text-xs font-semibold text-site-muted">
-          <span>Occupancy</span>
-          <span>{property.occupancyRate}%</span>
-        </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-[#EEE6D8]">
-          <div className="h-full rounded-full bg-brand-700" style={{ width: `${property.occupancyRate}%` }} />
+      <Icon size={30} className={`shrink-0 ${tones.icon}`} aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-medium leading-tight text-site-muted">{label}</div>
+        <div className={`truncate font-display text-[24px] font-bold leading-tight ${tones.value}`} title={title}>
+          {value}
         </div>
       </div>
+      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${tones.chev}`} aria-hidden="true">
+        <FaChevronRight size={11} />
+      </span>
     </Link>
   );
 }
 
-// Last 6 months of rent received, as simple bars (current month in maroon).
-function RentBars({ series }) {
+// --- Rent Collection Overview (Jan–Dec this year) ---------------------------
+function RentCollectionChart({ series, total }) {
   const max = Math.max(...series.map((s) => s.total), 1);
+  const nowMonth = new Date().getMonth();
   const summary = series.map((s) => `${s.month}: ${formatNaira(s.total)}`).join(", ");
   return (
-    <div className={`${panel} flex-[2_1_420px]`}>
-      <h2 className={panelTitle}>Rent received, last 6 months</h2>
-      <div className="mt-5 flex h-[200px] items-end gap-2 border-b border-site-border sm:gap-3.5" role="img" aria-label={`Rent received by month. ${summary}`}>
-        {series.map((s, i) => {
-          const isCurrent = i === series.length - 1;
-          return (
-            <div key={s.month} className="flex h-full flex-1 flex-col items-center justify-end">
-              <span className={`mb-1 text-[11px] sm:text-xs ${isCurrent ? "font-bold text-site-text" : "text-site-muted"}`}>
-                {formatNairaCompact(s.total)}
-              </span>
-              <div
-                className={`w-full rounded-t-lg ${isCurrent ? "bg-brand-700" : "bg-[#E6C26A]"}`}
-                style={{ height: `${Math.max((s.total / max) * 160, s.total > 0 ? 4 : 2)}px` }}
-              />
-            </div>
-          );
-        })}
+    <div className={`${panel} flex-[2_1_480px]`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className={panelTitle}>
+          <FaChartBar className="text-brand-700" aria-hidden="true" /> Rent Collection Overview
+        </h2>
+        <span className="rounded-xl border border-site-border px-3 py-1.5 text-sm font-semibold">This year ({new Date().getFullYear()})</span>
       </div>
-      <div className="mt-2 flex gap-2 text-xs text-site-muted sm:gap-3.5" aria-hidden="true">
+      <div className="mt-2 flex items-center gap-2 text-sm text-site-muted">
+        <span className="h-2.5 w-2.5 rounded-full bg-brand-700" aria-hidden="true" /> Collected · <b className="text-site-text">{formatNaira(total)}</b> so far
+      </div>
+      <div className="mt-4 flex h-[210px] items-end gap-1.5 border-b border-site-border sm:gap-2.5" role="img" aria-label={`Rent collected per month this year. ${summary}`}>
         {series.map((s, i) => (
-          <span key={s.month} className={`flex-1 text-center ${i === series.length - 1 ? "font-bold text-site-text" : ""}`}>
+          <div key={s.month} className="flex h-full flex-1 flex-col items-center justify-end">
+            {s.total > 0 && <span className="mb-1 hidden text-[10px] text-site-muted sm:block">{formatNairaCompact(s.total)}</span>}
+            <div
+              className={`w-full max-w-[34px] rounded-t-md ${i === nowMonth ? "bg-gold-500" : i < nowMonth ? "bg-brand-700" : "bg-[#EEE6D8]"}`}
+              style={{ height: `${s.total > 0 ? Math.max((s.total / max) * 170, 4) : 3}px` }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 flex gap-1.5 text-[11px] text-site-muted sm:gap-2.5 sm:text-xs" aria-hidden="true">
+        {series.map((s, i) => (
+          <span key={s.month} className={`flex-1 text-center ${i === nowMonth ? "font-bold text-site-text" : ""}`}>
             {s.month}
           </span>
         ))}
@@ -142,81 +125,269 @@ function RentBars({ series }) {
   );
 }
 
-function OccupancyByOwnership({ byOwnership }) {
+// --- Portfolio Occupancy donut ---------------------------------------------
+function OccupancyDonut({ overall, byOwnership }) {
+  const pct = overall.totalRooms ? Math.round((overall.occupiedRooms / overall.totalRooms) * 100) : 0;
+  const r = 52;
+  const c = 2 * Math.PI * r;
   const rows = [
-    { label: "Organization", bucket: byOwnership.organization, bar: "bg-brand-700" },
-    { label: "Personal", bucket: byOwnership.personal, bar: "bg-gold-500" },
-  ].filter((r) => r.bucket.totalRooms > 0);
-
+    { label: "Organization", b: byOwnership.organization },
+    { label: "Personal", b: byOwnership.personal },
+  ].filter((x) => x.b.totalRooms > 0);
   return (
-    <div className={`${panel} flex-[1_1_280px]`}>
-      <h2 className={panelTitle}>Occupancy</h2>
-      {rows.length === 0 && <p className="mt-4 text-sm text-site-muted">No rooms added yet.</p>}
-      {rows.map((r) => (
-        <div key={r.label} className="mt-[18px]">
-          <div className="flex justify-between text-sm">
-            <span>{r.label}</span>
-            <b>
-              {r.bucket.occupiedRooms} of {r.bucket.totalRooms}
-            </b>
-          </div>
-          <div
-            className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-[#EEE6D8]"
-            role="img"
-            aria-label={`${r.label}: ${r.bucket.occupancyRate}% occupied`}
-          >
-            <div className={`h-full ${r.bar}`} style={{ width: `${r.bucket.occupancyRate}%` }} />
+    <div className={`${panel} flex-[1_1_300px]`}>
+      <h2 className={panelTitle}>
+        <FaChartPie className="text-brand-700" aria-hidden="true" /> Portfolio Occupancy
+      </h2>
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-6">
+        <div className="relative h-[140px] w-[140px]" role="img" aria-label={`${pct}% occupied: ${overall.occupiedRooms} occupied, ${overall.vacantRooms} vacant`}>
+          <svg width="140" height="140" viewBox="0 0 140 140" aria-hidden="true">
+            <circle cx="70" cy="70" r={r} fill="none" stroke="#EEE6D8" strokeWidth="16" />
+            <circle
+              cx="70"
+              cy="70"
+              r={r}
+              fill="none"
+              stroke="#5C1010"
+              strokeWidth="16"
+              strokeLinecap="round"
+              strokeDasharray={`${(pct / 100) * c} ${c}`}
+              transform="rotate(-90 70 70)"
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="font-display text-[28px] font-bold leading-none">{pct}%</span>
+            <span className="text-xs text-site-muted">Occupied</span>
           </div>
         </div>
-      ))}
-      <Link to="/dashboard/staff/properties" className={`mt-6 inline-block text-sm ${textLink}`}>
-        View properties
-      </Link>
+        <div className="space-y-3 text-sm">
+          <div className="flex items-start gap-2">
+            <span className="mt-1 h-3 w-3 rounded-full bg-brand-700" aria-hidden="true" />
+            <div>
+              <div className="font-semibold">Occupied</div>
+              <div className="text-site-muted">{overall.occupiedRooms} units</div>
+            </div>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="mt-1 h-3 w-3 rounded-full bg-[#D9CFBD]" aria-hidden="true" />
+            <div>
+              <div className="font-semibold">Vacant</div>
+              <div className="text-site-muted">{overall.vacantRooms} units</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {rows.length > 0 && (
+        <div className="mt-4 space-y-1.5 border-t border-[#F3ECDF] pt-3 text-[13px]">
+          {rows.map((x) => (
+            <div key={x.label} className="flex justify-between">
+              <span className="text-site-muted">{x.label}</span>
+              <span className="font-semibold">
+                {x.b.occupiedRooms} of {x.b.totalRooms} occupied
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function NeedsAttention({ tenants }) {
+// --- Properties Overview table ---------------------------------------------
+function PropertyRowThumb({ property }) {
+  const icon = (
+    <div className="flex h-10 w-12 items-center justify-center rounded-lg bg-[#F6E7BC] text-brand-700">
+      <FaBuilding size={15} aria-hidden="true" />
+    </div>
+  );
+  if (!property.hasPhoto) return icon;
   return (
-    <div className={`${panel} flex-[2_1_420px]`}>
-      <div className="flex items-center justify-between gap-3">
-        <h2 className={panelTitle}>Needs attention</h2>
-        <Link to="/dashboard/staff/tenants" className={`text-sm ${textLink}`}>
-          All tenants
+    <div className="h-10 w-12 overflow-hidden rounded-lg bg-[#F6E7BC]">
+      <AuthImage src={propertiesApi.photoUrl(property.id)} alt="" className="h-full w-full object-cover" fallback={icon} />
+    </div>
+  );
+}
+
+function PropertiesOverview({ properties }) {
+  const total = properties.reduce(
+    (t, p) => ({
+      units: t.units + p.totalRooms,
+      occupied: t.occupied + p.occupiedRooms,
+      collected: t.collected + Number(p.collectedThisYear || 0),
+      outstanding: t.outstanding + Number(p.outstanding || 0),
+    }),
+    { units: 0, occupied: 0, collected: 0, outstanding: 0 }
+  );
+  return (
+    <div className={`${panel} flex-[2_1_520px] px-0 pb-2 sm:px-0`}>
+      <div className="flex items-center justify-between gap-3 px-5 sm:px-6">
+        <h2 className={panelTitle}>
+          <FaBuilding className="text-brand-700" aria-hidden="true" /> Properties Overview
+        </h2>
+        <Link to="/dashboard/staff/properties" className={`text-sm ${textLink}`}>
+          View all <FaArrowRight size={11} aria-hidden="true" />
         </Link>
       </div>
-      {tenants.length === 0 ? (
-        <p className="mt-4 text-sm text-site-muted">Everyone is paid up. Nothing needs attention.</p>
+      {properties.length === 0 ? (
+        <p className="px-6 pt-4 text-sm text-site-muted">No properties yet.</p>
+      ) : (
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[620px] border-collapse text-sm">
+            <thead>
+              <tr className="bg-site-cream text-left text-[13px] text-site-muted">
+                <th className="px-5 py-2.5 font-semibold sm:px-6">Property Name</th>
+                <th className="px-2 py-2.5 text-center font-semibold">Total Units</th>
+                <th className="px-2 py-2.5 text-center font-semibold">Occupied</th>
+                <th className="px-2 py-2.5 text-right font-semibold">Collected (YTD)</th>
+                <th className="px-2 py-2.5 text-right font-semibold">Outstanding</th>
+                <th className="px-5 py-2.5 text-right font-semibold sm:px-6">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {properties.map((p) => (
+                <tr key={p.id} className="border-b border-[#F3ECDF]">
+                  <td className="px-5 py-3 sm:px-6">
+                    <div className="flex items-center gap-3">
+                      <PropertyRowThumb property={p} />
+                      <span className="font-semibold">{p.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-2 py-3 text-center">{p.totalRooms}</td>
+                  <td className="px-2 py-3 text-center">{p.occupiedRooms}</td>
+                  <td className="whitespace-nowrap px-2 py-3 text-right font-semibold text-[#1F6B3A]">{formatNaira(p.collectedThisYear || 0)}</td>
+                  <td className="whitespace-nowrap px-2 py-3 text-right font-semibold text-[#8A1C1C]">{formatNaira(p.outstanding || 0)}</td>
+                  <td className="px-5 py-3 text-right sm:px-6">
+                    <Link
+                      to={`/dashboard/staff/properties/${p.id}`}
+                      className={`inline-flex min-h-[36px] items-center gap-1.5 whitespace-nowrap rounded-lg bg-[#F6E7BC] px-3 text-xs font-bold text-brand-700 hover:bg-[#EFD995] ${ring}`}
+                    >
+                      View Details <FaChevronRight size={9} aria-hidden="true" />
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bg-site-cream font-bold">
+                <td className="px-5 py-3 sm:px-6">Total</td>
+                <td className="px-2 py-3 text-center">{total.units}</td>
+                <td className="px-2 py-3 text-center">{total.occupied}</td>
+                <td className="whitespace-nowrap px-2 py-3 text-right text-[#1F6B3A]">{formatNaira(total.collected)}</td>
+                <td className="whitespace-nowrap px-2 py-3 text-right text-[#8A1C1C]">{formatNaira(total.outstanding)}</td>
+                <td className="px-5 sm:px-6" />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Attention Required + Recent Activity -----------------------------------
+function AttentionRequired({ arrears, totalOwing, pendingMaintenance }) {
+  const items = [
+    {
+      icon: FaExclamationCircle,
+      iconCls: "text-[#8A1C1C]",
+      title: `${arrears.length} tenant${arrears.length === 1 ? "" : "s"} in arrears`,
+      sub: totalOwing > 0 ? `Owing: ${formatNaira(totalOwing)}` : "Part-paid or no payment yet",
+      to: "/dashboard/staff/tenants",
+      btn: "bg-[#FBE6E6] text-[#8A1C1C] hover:bg-[#F6D3D3]",
+      show: arrears.length > 0,
+    },
+    {
+      icon: FaTools,
+      iconCls: "text-brand-700",
+      title: `${pendingMaintenance} maintenance request${pendingMaintenance === 1 ? "" : "s"}`,
+      sub: "Pending action",
+      to: "/dashboard/staff/maintenance",
+      btn: "bg-[#F6E7BC] text-brand-700 hover:bg-[#EFD995]",
+      show: pendingMaintenance > 0,
+    },
+  ].filter((i) => i.show);
+
+  return (
+    <div className={panel}>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className={panelTitle}>
+          <FaExclamationCircle className="text-[#8A1C1C]" aria-hidden="true" /> Attention Required
+        </h2>
+        <Link to="/dashboard/staff/tenants" className={`text-sm ${textLink}`}>
+          View all <FaArrowRight size={11} aria-hidden="true" />
+        </Link>
+      </div>
+      {items.length === 0 ? (
+        <p className="m-0 mt-3 text-sm text-site-muted">Nothing needs attention right now.</p>
       ) : (
         <ul className="m-0 mt-2 list-none p-0">
-          {tenants.slice(0, 6).map((t) => {
-            const chip = ARREARS_CHIP[t.lastPaymentStatus] || ARREARS_CHIP.NO_PAYMENTS;
+          {items.map((i) => (
+            <li key={i.title} className="flex items-center gap-3 border-t border-[#F3ECDF] py-3 first:border-t-0">
+              <i.icon size={22} className={`shrink-0 ${i.iconCls}`} aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold">{i.title}</div>
+                <div className="text-[13px] text-site-muted">{i.sub}</div>
+              </div>
+              <Link to={i.to} className={`inline-flex min-h-[36px] items-center rounded-lg px-3.5 text-sm font-bold ${i.btn} ${ring}`}>
+                View
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+const ACTIVITY = {
+  CREATED: { icon: FaCheckCircle, cls: "text-[#1F6B3A]", verb: "Payment recorded" },
+  EDITED: { icon: FaEdit, cls: "text-[#8C670C]", verb: "Payment edited" },
+  DELETED: { icon: FaTrash, cls: "text-[#8A1C1C]", verb: "Payment deleted" },
+};
+
+function RecentActivity({ logs }) {
+  return (
+    <div className={panel}>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className={panelTitle}>
+          <FaBolt className="text-gold-600" aria-hidden="true" /> Recent Activity
+        </h2>
+        <Link to="/dashboard/staff/history" className={`text-sm ${textLink}`}>
+          View all <FaArrowRight size={11} aria-hidden="true" />
+        </Link>
+      </div>
+      {logs === null ? (
+        <p className="m-0 mt-3 text-sm text-site-muted">Loading…</p>
+      ) : logs.length === 0 ? (
+        <p className="m-0 mt-3 text-sm text-site-muted">No payment activity yet.</p>
+      ) : (
+        <ul className="m-0 mt-2 list-none p-0">
+          {logs.slice(0, 4).map((log) => {
+            const a = ACTIVITY[log.action] || ACTIVITY.EDITED;
+            const amount = log.newData?.amount ?? log.previousData?.amount;
             return (
-              <li key={t.tenantId} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[#F3ECDF] py-3 first:border-t-0">
-                {/* Phones: name/details on one line, chip + Open on the next. */}
-                <div className="min-w-0 basis-full sm:basis-0 sm:flex-grow">
-                  <b className="text-[15px]">{t.name}</b>
-                  <div className="text-[13px] text-site-muted">
-                    {t.room || "No room"}
-                    {t.lastPaymentDate ? ` · last paid ${new Date(t.lastPaymentDate).toLocaleDateString("en-NG", { day: "numeric", month: "short" })}` : ""}
+              <li key={log.id} className="flex gap-3 border-t border-[#F3ECDF] py-2.5 first:border-t-0">
+                <a.icon size={18} className={`mt-0.5 shrink-0 ${a.cls}`} aria-hidden="true" />
+                <div className="min-w-0 flex-1 text-sm">
+                  <div className="font-semibold">
+                    {a.verb}
+                    {amount !== undefined ? ` — ${formatNaira(amount)}` : ""}
+                  </div>
+                  <div className="flex flex-wrap justify-between gap-x-3 text-xs text-site-muted">
+                    <span>{timeAgo(log.createdAt)}</span>
+                    <span>by {log.performedByName}</span>
                   </div>
                 </div>
-                <Badge tone={chip.tone}>{chip.label}</Badge>
-                <Link to={`/dashboard/staff/tenants/${t.tenantId}`} className={`inline-flex min-h-[44px] items-center px-1 text-[13px] ${textLink}`}>
-                  Open
-                </Link>
               </li>
             );
           })}
         </ul>
       )}
-      {tenants.length > 6 && <p className="m-0 mt-1 text-[13px] text-site-muted">and {tenants.length - 6} more</p>}
     </div>
   );
 }
 
-// How all recorded payments split between Paid / Partial / Owing — one
-// stacked bar plus the counts (the same figures the old pie chart showed).
+// --- Kept from the earlier dashboard ----------------------------------------
 function PaymentStatusStrip({ byStatus }) {
   const segments = [
     { key: "PAID", label: "Paid", bar: "bg-[#1F6B3A]", tone: "green" },
@@ -225,7 +396,6 @@ function PaymentStatusStrip({ byStatus }) {
   ].map((s) => ({ ...s, count: byStatus[s.key].count }));
   const total = segments.reduce((sum, s) => sum + s.count, 0);
   const pct = (n) => (total ? Math.round((n / total) * 100) : 0);
-
   return (
     <div className={panel}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -238,11 +408,7 @@ function PaymentStatusStrip({ byStatus }) {
         <p className="mt-4 text-sm text-site-muted">No payments recorded yet.</p>
       ) : (
         <>
-          <div
-            className="mt-4 flex h-3 overflow-hidden rounded-full bg-[#EEE6D8]"
-            role="img"
-            aria-label={segments.map((s) => `${s.label}: ${s.count} (${pct(s.count)}%)`).join(", ")}
-          >
+          <div className="mt-4 flex h-3 overflow-hidden rounded-full bg-[#EEE6D8]" role="img" aria-label={segments.map((s) => `${s.label}: ${s.count} (${pct(s.count)}%)`).join(", ")}>
             {segments.map((s) => s.count > 0 && <div key={s.key} className={s.bar} style={{ width: `${pct(s.count)}%` }} />)}
           </div>
           <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
@@ -260,32 +426,36 @@ function PaymentStatusStrip({ byStatus }) {
   );
 }
 
-function RecentActivity({ logs }) {
+function PropertyOverviewCard({ property }) {
   return (
-    <div className={`${panel} flex-[1_1_280px]`}>
-      <h2 className={panelTitle}>Recent activity</h2>
-      {logs === null ? (
-        <p className="mt-4 text-sm text-site-muted">Loading…</p>
-      ) : logs.length === 0 ? (
-        <p className="mt-4 text-sm text-site-muted">No payment activity yet.</p>
-      ) : (
-        <ul className="m-0 mt-3.5 flex list-none flex-col gap-3.5 p-0 text-sm leading-snug">
-          {logs.slice(0, 5).map((log) => {
-            const amount = log.newData?.amount ?? log.previousData?.amount;
-            return (
-              <li key={log.id}>
-                <b>{log.performedByName}</b> <span className="text-site-muted">({log.performedByRole.toLowerCase()})</span>{" "}
-                {AUDIT_VERB[log.action] || "changed"} {amount !== undefined ? formatNaira(amount) : "a payment"}
-                <div className="text-xs text-site-muted">{timeAgo(log.createdAt)}</div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      <Link to="/dashboard/staff/payments" className={`mt-[18px] inline-block text-sm ${textLink}`}>
-        Open payment ledger
-      </Link>
-    </div>
+    <Link
+      to={`/dashboard/staff/properties/${property.id}`}
+      className={`block rounded-[18px] border border-[#EFE6D6] bg-white p-5 transition-[transform,box-shadow] duration-200 hover:shadow-[0_12px_28px_rgba(60,10,10,0.12)] motion-safe:hover:-translate-y-0.5 ${ring}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <PropertyRowThumb property={property} />
+          <div className="min-w-0">
+            <h3 className="m-0 text-[15px] font-bold text-site-text">{property.name}</h3>
+            <p className="m-0 line-clamp-2 text-xs text-site-muted">{property.address}</p>
+          </div>
+        </div>
+        <Badge tone={property.ownershipType === "ORGANIZATION" ? "brand" : "ink"}>
+          {property.ownershipType === "ORGANIZATION" ? "Organization" : "Personal"}
+        </Badge>
+      </div>
+      <div className="mt-3">
+        <div className="mb-1 flex items-center justify-between text-xs font-semibold text-site-muted">
+          <span>
+            {property.occupiedRooms} of {property.totalRooms} occupied · {property.tenantCount} tenants
+          </span>
+          <span>{property.occupancyRate}%</span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-[#EEE6D8]">
+          <div className="h-full rounded-full bg-brand-700" style={{ width: `${property.occupancyRate}%` }} />
+        </div>
+      </div>
+    </Link>
   );
 }
 
@@ -297,6 +467,7 @@ export default function StaffDashboard() {
   const [error, setError] = useState("");
   const [payoutStatus, setPayoutStatus] = useState(null);
   const [auditLogs, setAuditLogs] = useState(null);
+  const [pendingMaintenance, setPendingMaintenance] = useState(0);
 
   useEffect(() => {
     Promise.all([dashboardApi.get(), propertiesApi.list()])
@@ -309,21 +480,55 @@ export default function StaffDashboard() {
       .auditLog()
       .then((res) => setAuditLogs(res.data))
       .catch(() => setAuditLogs([]));
+    maintenanceApi
+      .listForStaff("PENDING")
+      .then((res) => setPendingMaintenance(res.data.length))
+      .catch(() => {});
     if (user.role === "landlord") {
       payoutApi.status().then((res) => setPayoutStatus(res.data)).catch(() => {});
     }
   }, [user.role]);
 
   const filteredProperties = properties?.filter((p) => ownershipFilter === "ALL" || p.ownershipType === ownershipFilter) || [];
+  const today = new Date().toLocaleDateString("en-NG", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+  const actions = (
+    <>
+      <Link
+        to="/dashboard/staff/properties?add=1"
+        className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-brand-700 px-5 font-bold text-white transition hover:bg-brand-800 motion-safe:hover:-translate-y-0.5 ${ring}`}
+      >
+        <FaPlus size={12} aria-hidden="true" /> Add Property
+      </Link>
+      <Link
+        to="/dashboard/staff/tenants"
+        className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl border-[1.5px] border-brand-700 bg-white px-5 font-bold text-brand-700 transition hover:bg-site-cream motion-safe:hover:-translate-y-0.5 ${ring}`}
+      >
+        <FaCreditCard size={13} aria-hidden="true" /> Record Payment
+      </Link>
+    </>
+  );
 
   return (
-    <DashboardShell navItems={STAFF_NAV} title="Your rent at a glance" subtitle={`${greetingNow()}, ${user.fullName?.split(" ")[0]}`}>
+    <DashboardShell
+      navItems={STAFF_NAV}
+      title={`${greetingNow()}, ${user.fullName?.split(" ")[0]}`}
+      subtitle={
+        <>
+          <span>Here's what's happening with your properties today.</span>
+          <span className="mt-1.5 flex items-center gap-2 font-semibold text-site-text">
+            <FaCalendarAlt className="text-brand-700" aria-hidden="true" /> {today}
+          </span>
+        </>
+      }
+      actions={user.role === "secretary" ? null : actions}
+    >
       {error && <div className="mb-4 rounded-xl bg-[#FBE6E6] px-4 py-3 text-sm font-medium text-[#8A1C1C]">{error}</div>}
 
       {payoutStatus && !payoutStatus.payoutVerified && (
         <Link
           to="/dashboard/staff/payout-setup"
-          className="mb-4 flex items-center gap-3 rounded-xl bg-[#FFF1CC] px-4 py-3.5 text-sm font-medium text-[#6B4E00] transition hover:bg-[#FBE7A8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+          className={`mb-4 flex items-center gap-3 rounded-xl bg-[#FFF1CC] px-4 py-3.5 text-sm font-medium text-[#6B4E00] transition hover:bg-[#FBE7A8] ${ring}`}
         >
           <FaExclamationTriangle size={16} className="shrink-0" aria-hidden="true" />
           <span className="flex-1">
@@ -345,61 +550,39 @@ export default function StaffDashboard() {
 
       {data && (
         <div className="space-y-4">
-          {/* Secretaries already have the full Record a payment panel above. */}
-          <div className={`flex flex-wrap justify-end gap-2.5 ${user.role === "secretary" ? "hidden" : ""}`}>
-            <Link
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,160px),1fr))] gap-3 sm:gap-4">
+            <KpiCard to="/dashboard/staff/properties" icon={FaHome} label="Total Properties" value={data.overall.totalProperties} />
+            <KpiCard to="/dashboard/staff/properties" icon={FaDoorOpen} label="Total Units" value={data.overall.totalRooms} tone="green" />
+            <KpiCard to="/dashboard/staff/tenants" icon={FaUsers} label="Occupied / Vacant" value={`${data.overall.occupiedRooms} / ${data.overall.vacantRooms}`} />
+            <KpiCard
+              to="/dashboard/staff/payments"
+              icon={FaMoneyBillWave}
+              label="Rent Collected This Year"
+              value={formatNairaCompact(data.finance.collectedThisYear || 0)}
+              title={formatNaira(data.finance.collectedThisYear || 0)}
+              tone="green"
+            />
+            <KpiCard
               to="/dashboard/staff/tenants"
-              className="inline-flex min-h-[44px] items-center rounded-xl bg-gold-500 px-5 font-bold text-site-text transition motion-safe:hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 focus-visible:ring-offset-site-cream"
-            >
-              Record payment
-            </Link>
-          </div>
-
-          {/* Headline numbers */}
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,210px),1fr))] gap-4">
-            <div className="rounded-[18px] bg-brand-700 p-5 text-white">
-              <div className="text-[13px] text-[#F3D9A0]">Received this month</div>
-              <div className="mt-1 truncate font-display text-[30px] font-bold" title={formatNaira(data.finance.collectedThisMonth)}>
-                {formatNairaCompact(data.finance.collectedThisMonth)}
-              </div>
-              <div className="mt-2.5 text-xs text-[#F3D9A0]">{formatNairaCompact(data.finance.totalCollected)} collected in total</div>
-            </div>
-            <div className="rounded-[18px] bg-[#FBE6E6] p-5 text-[#8A1C1C]">
-              <div className="text-[13px]">Owing</div>
-              <div className="mt-1 truncate font-display text-[30px] font-bold" title={formatNaira(data.finance.totalOwing)}>
-                {formatNairaCompact(data.finance.totalOwing)}
-              </div>
-              <div className="mt-2.5 text-[13px]">
-                {data.finance.tenantsInArrears.length} tenant{data.finance.tenantsInArrears.length === 1 ? "" : "s"} in arrears
-              </div>
-            </div>
-            <div className="rounded-[18px] border border-[#EFE6D6] bg-white p-5">
-              <div className="text-[13px] text-site-muted">Occupancy</div>
-              <div className="mt-1 whitespace-nowrap font-display text-[30px] font-bold">
-                {data.overall.occupiedRooms} of {data.overall.totalRooms}
-              </div>
-              <div className="mt-2.5 text-[13px] text-site-muted">
-                rooms filled · {data.overall.vacantRooms} vacant · {data.overall.totalProperties} propert
-                {data.overall.totalProperties === 1 ? "y" : "ies"}
-              </div>
-            </div>
-            <div className="rounded-[18px] border border-[#EFE6D6] bg-white p-5">
-              <div className="text-[13px] text-site-muted">Tenants</div>
-              <div className="mt-1 font-display text-[30px] font-bold">{data.totalTenants}</div>
-              <Link to="/dashboard/staff/complaints" className={`mt-2.5 inline-block text-[13px] ${textLink}`}>
-                {data.openComplaints} open complaint{data.openComplaints === 1 ? "" : "s"}
-              </Link>
-            </div>
+              icon={FaExclamationCircle}
+              label="Outstanding"
+              value={formatNairaCompact((properties || []).reduce((s, p) => s + Number(p.outstanding || 0), 0))}
+              title={formatNaira((properties || []).reduce((s, p) => s + Number(p.outstanding || 0), 0))}
+              tone="red"
+            />
           </div>
 
           <div className="flex flex-wrap gap-4">
-            <RentBars series={data.finance.monthlySeries} />
-            <OccupancyByOwnership byOwnership={data.byOwnership} />
+            <RentCollectionChart series={data.finance.yearSeries || []} total={data.finance.collectedThisYear || 0} />
+            <OccupancyDonut overall={data.overall} byOwnership={data.byOwnership} />
           </div>
 
-          <div className="flex flex-wrap gap-4">
-            <NeedsAttention tenants={data.finance.tenantsInArrears} />
-            <RecentActivity logs={auditLogs} />
+          <div className="flex flex-wrap items-start gap-4">
+            <PropertiesOverview properties={properties || []} />
+            <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
+              <AttentionRequired arrears={data.finance.tenantsInArrears} totalOwing={data.finance.totalOwing} pendingMaintenance={pendingMaintenance} />
+              <RecentActivity logs={auditLogs} />
+            </div>
           </div>
 
           <PaymentStatusStrip byStatus={data.finance.byStatus} />
@@ -413,7 +596,7 @@ export default function StaffDashboard() {
                     key={f.value}
                     onClick={() => setOwnershipFilter(f.value)}
                     aria-pressed={ownershipFilter === f.value}
-                    className={`min-h-[40px] rounded-lg px-3.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 ${
+                    className={`min-h-[40px] rounded-lg px-3.5 text-xs font-bold transition ${ring} ${
                       ownershipFilter === f.value ? "bg-brand-700 text-white" : "text-site-muted hover:text-site-text"
                     }`}
                   >
@@ -422,7 +605,6 @@ export default function StaffDashboard() {
                 ))}
               </div>
             </div>
-
             {filteredProperties.length === 0 ? (
               <EmptyState
                 icon={FaDoorOpen}
@@ -441,15 +623,12 @@ export default function StaffDashboard() {
           <FinanceReportSection finance={data.finance} title="Finance Report (All Properties)" />
 
           <div className="flex flex-wrap gap-3">
-            <Link
-              to="/dashboard/staff/properties"
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-brand-700 px-5 text-sm font-bold text-white transition hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
-            >
+            <Link to="/dashboard/staff/properties" className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-brand-700 px-5 text-sm font-bold text-white transition hover:bg-brand-800 ${ring}`}>
               Manage Properties <FaArrowRight size={12} aria-hidden="true" />
             </Link>
             <Link
               to="/dashboard/staff/tenants"
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-site-border bg-white px-5 text-sm font-bold text-site-text transition hover:border-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+              className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-site-border bg-white px-5 text-sm font-bold text-site-text transition hover:border-brand-300 ${ring}`}
             >
               Manage Tenants <FaArrowRight size={12} aria-hidden="true" />
             </Link>

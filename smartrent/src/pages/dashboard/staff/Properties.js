@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { FaPlus, FaBuilding, FaEdit, FaTrash } from "react-icons/fa";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
 import { Badge, EmptyState, formatNaira, formatNairaCompact } from "../../../components/dashboard/UiKit";
@@ -198,6 +198,15 @@ export default function Properties() {
   }
 
   useEffect(load, []);
+
+  // The dashboard's "Add Property" button links here with ?add=1.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("add") === "1") {
+      setModal({ mode: "add" });
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   async function handleSubmit(form) {
     setSubmitting(true);
