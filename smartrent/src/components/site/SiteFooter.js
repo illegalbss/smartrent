@@ -7,7 +7,6 @@ const focusRing =
 
 const LINKS = [
   { to: "/features", label: "Features" },
-  { to: "/pricing", label: "Pricing" },
   { to: "/register", label: "Get started" },
   { to: "/login", label: "Log in" },
 ];

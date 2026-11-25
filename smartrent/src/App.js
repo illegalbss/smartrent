@@ -1,11 +1,10 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import InstallPrompt from "./components/InstallPrompt";
 import UpdateBanner from "./components/UpdateBanner";
 import Landing from "./pages/Landing";
 import Features from "./pages/Features";
-import Pricing from "./pages/Pricing";
 import PaymentSuccessPreview from "./pages/dev/PaymentSuccessPreview";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -47,7 +46,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/features" element={<Features />} />
-        <Route path="/pricing" element={<Pricing />} />
+        {/* Pricing page removed from the public site; old links go home. */}
+        <Route path="/pricing" element={<Navigate to="/" replace />} />
         {process.env.NODE_ENV === "development" && (
           <Route path="/dev/payment-success" element={<PaymentSuccessPreview />} />
         )}

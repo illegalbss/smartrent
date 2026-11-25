@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { SitePage, Eyebrow, SiteButton, CtaBand, StatusChip } from "../components/site/SiteUi";
+import Reveal, { useCountUp } from "../components/site/Reveal";
 
 // Sample figures for the hero's dashboard preview — display only.
 const PREVIEW_TENANTS = [
@@ -63,18 +64,22 @@ const ROLES = [
 
 const h2 = "m-0 mt-2.5 font-display text-[clamp(30px,4vw,44px)] font-bold leading-[1.1]";
 
+const d = (ms) => ({ "--d": `${ms}ms` });
+
 function DashboardPreview() {
+  const collected = useCountUp(1240000, 1500, 500);
   return (
     <div className="relative min-w-0 flex-[1_1_400px] pb-8 pt-4" aria-label="Example RentaFlow dashboard with sample figures" role="img">
-      <div className="mx-auto max-w-[480px] overflow-hidden rounded-[22px] bg-white shadow-[0_24px_60px_rgba(60,10,10,0.18)]">
+      <div className="anim-pop mx-auto max-w-[480px]" style={d(250)}>
+      <div className="anim-float overflow-hidden rounded-[22px] bg-white shadow-[0_24px_60px_rgba(60,10,10,0.18)]">
         <div className="bg-brand-700 px-6 pb-10 pt-5 text-white">
           <div className="text-[13px] text-[#F3D9A0]">Collected this month</div>
-          <div className="font-display text-[38px] font-bold">₦1,240,000</div>
+          <div className="font-display text-[38px] font-bold tabular-nums">₦{collected.toLocaleString("en-NG")}</div>
         </div>
         <div className="-mt-[22px] px-6 pb-2">
           <div className="rounded-xl bg-white px-3.5 py-3 shadow-[0_4px_14px_rgba(60,10,10,0.1)]">
             <div className="h-2 overflow-hidden rounded bg-[#EEE6D8]">
-              <div className="h-full w-[78%] bg-gold-500" />
+              <div className="anim-fill h-full w-[78%] bg-gold-500" style={d(600)} />
             </div>
             <div className="mt-1.5 flex justify-between text-xs text-site-muted">
               <span>78% of expected</span>
@@ -84,7 +89,11 @@ function DashboardPreview() {
         </div>
         <div className="flex flex-col gap-2.5 px-6 pb-6 pt-2">
           {PREVIEW_TENANTS.map((t, i) => (
-            <div key={t.name} className={`flex items-center gap-3 py-2.5 ${i < PREVIEW_TENANTS.length - 1 ? "border-b border-[#EEE6D8]" : ""}`}>
+            <div
+              key={t.name}
+              className={`anim-rise flex items-center gap-3 py-2.5 ${i < PREVIEW_TENANTS.length - 1 ? "border-b border-[#EEE6D8]" : ""}`}
+              style={d(900 + i * 180)}
+            >
               <div className="flex-grow">
                 <div className="text-[15px] font-semibold">{t.name}</div>
                 <div className="text-[13px] text-site-muted">{t.unit}</div>
@@ -94,10 +103,11 @@ function DashboardPreview() {
           ))}
         </div>
       </div>
-      <div className="absolute bottom-0 right-0 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-[0_12px_32px_rgba(60,10,10,0.2)]">
+      </div>
+      <div style={d(1900)} className="anim-pop absolute bottom-0 right-0 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-[0_12px_32px_rgba(60,10,10,0.2)]">
         <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true">
           <circle cx="18" cy="18" r="16" fill="#E3F2E7" />
-          <path d="M11 18.5l5 5 9-10" fill="none" stroke="#1F6B3A" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          <path className="anim-check" style={d(2300)} d="M11 18.5l5 5 9-10" fill="none" stroke="#1F6B3A" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         <div>
           <div className="text-sm font-bold">Payment saved</div>
@@ -115,17 +125,17 @@ export default function Landing() {
       <section>
         <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-12 px-6 pb-20 pt-[72px]">
           <div className="min-w-0 flex-[1_1_440px]">
-            <div className="inline-block rounded-full bg-[#F6E7BC] px-3.5 py-1.5 text-[13px] font-semibold text-[#5A4100]">
+            <div style={d(0)} className="anim-rise inline-block rounded-full bg-[#F6E7BC] px-3.5 py-1.5 text-[13px] font-semibold text-[#5A4100]">
               Made for Nigerian landlords
             </div>
-            <h1 className="m-0 mt-5 font-display text-[clamp(38px,5.4vw,66px)] font-bold leading-[1.05]">
+            <h1 style={d(120)} className="anim-rise m-0 mt-5 font-display text-[clamp(38px,5.4vw,66px)] font-bold leading-[1.05]">
               Know who has paid. Every month. Without the stress.
             </h1>
-            <p className="m-0 mt-5 max-w-[520px] text-[19px] leading-relaxed text-site-muted">
+            <p style={d(240)} className="anim-rise m-0 mt-5 max-w-[520px] text-[19px] leading-relaxed text-site-muted">
               RentaFlow keeps your tenants, rent records and documents in one safe place, so you stop chasing notebooks and
               WhatsApp messages.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div style={d(360)} className="anim-rise mt-8 flex flex-wrap gap-3">
               <SiteButton to="/register">Get started</SiteButton>
               <SiteButton href="#how" variant="outline">See how it works</SiteButton>
             </div>
@@ -137,80 +147,78 @@ export default function Landing() {
       {/* 2. Trust strip */}
       <section className="border-y border-site-border bg-white">
         <ul className="mx-auto flex max-w-[1200px] flex-wrap justify-center gap-x-10 gap-y-4 px-6 py-7 text-[15px] font-semibold text-brand-700">
-          {TRUST.map((t) => (
-            <li key={t}>{t}</li>
+          {TRUST.map((t, i) => (
+            <Reveal as="li" key={t} delay={i * 90} className="flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" className="shrink-0 text-gold-500">
+                <path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {t}
+            </Reveal>
           ))}
         </ul>
       </section>
 
       {/* 3. Everything in one place */}
       <section className="mx-auto max-w-[1200px] px-6 pb-6 pt-[88px]">
-        <div className="max-w-[640px]">
+        <Reveal className="max-w-[640px]">
           <Eyebrow>EVERYTHING IN ONE PLACE</Eyebrow>
           <h2 className={h2}>Less paperwork. More peace of mind.</h2>
-        </div>
+        </Reveal>
         <div className="mt-10 grid grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))] gap-5">
-          {FEATURES.map((f) => (
+          {FEATURES.map((f, i) => (
+            <Reveal key={f.title} delay={(i % 3) * 110}>
             <Link
-              key={f.title}
               to="/features"
-              className="block rounded-[18px] bg-white p-7 transition-[transform,box-shadow] duration-[250ms] hover:shadow-[0_12px_28px_rgba(60,10,10,0.14)] motion-safe:hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+              className="group block h-full rounded-[18px] bg-white p-7 transition-[transform,box-shadow] duration-[250ms] hover:shadow-[0_12px_28px_rgba(60,10,10,0.14)] motion-safe:hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-[#F6E7BC] text-brand-700">{f.icon}</div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-[#F6E7BC] text-brand-700 transition-transform duration-300 motion-safe:group-hover:-rotate-6 motion-safe:group-hover:scale-110">{f.icon}</div>
               <h3 className="m-0 mt-[18px] text-[19px] font-bold">{f.title}</h3>
               <p className="m-0 mt-2 leading-relaxed text-site-muted">{f.body}</p>
             </Link>
+            </Reveal>
           ))}
         </div>
       </section>
 
       {/* 4. How it works */}
       <section id="how" className="mx-auto max-w-[1200px] scroll-mt-4 px-6 pb-6 pt-[72px]">
-        <div className="max-w-[640px]">
+        <Reveal className="max-w-[640px]">
           <Eyebrow>HOW IT WORKS</Eyebrow>
           <h2 className={h2}>Set up in an afternoon.</h2>
-        </div>
+        </Reveal>
         <ol className="m-0 mt-10 grid list-none grid-cols-1 gap-8 p-0 md:grid-cols-3">
           {STEPS.map((s, i) => (
-            <li key={s.title}>
+            <Reveal as="li" key={s.title} delay={i * 160}>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-700 font-display text-[22px] font-bold text-[#F3D9A0]">
                 {i + 1}
               </div>
               <h3 className="m-0 mt-4 text-xl font-bold">{s.title}</h3>
               <p className="m-0 mt-2 leading-relaxed text-site-muted">{s.body}</p>
-            </li>
+            </Reveal>
           ))}
         </ol>
       </section>
 
       {/* 5. A login for everyone */}
       <section className="mx-auto max-w-[1200px] px-6 pb-6 pt-[72px]">
-        <div className="flex flex-wrap items-center gap-8 rounded-3xl bg-site-deep px-6 py-12 text-white sm:px-10">
+        <Reveal className="flex flex-wrap items-center gap-8 rounded-3xl bg-site-deep px-6 py-12 text-white sm:px-10">
           <div className="flex-[1_1_360px]">
             <Eyebrow light>A LOGIN FOR EVERYONE</Eyebrow>
             <h2 className="m-0 mt-2.5 font-display text-[clamp(28px,3.6vw,40px)] font-bold leading-[1.1]">The right access for each person.</h2>
           </div>
           <div className="grid flex-[2_1_460px] grid-cols-[repeat(auto-fit,minmax(min(100%,200px),1fr))] gap-4">
-            {ROLES.map((r) => (
-              <div key={r.title} className="rounded-2xl bg-[#431010] p-5">
+            {ROLES.map((r, i) => (
+              <Reveal key={r.title} delay={150 + i * 120} className="rounded-2xl bg-[#431010] p-5">
                 <h3 className="m-0 text-base font-bold text-[#F3D9A0]">{r.title}</h3>
                 <p className="m-0 mt-1.5 text-sm leading-normal text-[#E8DADA]">{r.body}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
-        </div>
+        </Reveal>
       </section>
 
-      {/* 6. Pricing teaser */}
-      <section className="mx-auto max-w-[1200px] px-6 pb-6 pt-[72px] text-center">
-        <h2 className="m-0 font-display text-[clamp(30px,4vw,44px)] font-bold leading-[1.1]">Simple yearly plans.</h2>
-        <p className="mx-auto mb-0 mt-3.5 max-w-[560px] text-lg leading-relaxed text-site-muted">
-          One flat yearly price based on how many units you manage. No charge on rent payments.
-        </p>
-        <SiteButton to="/pricing" variant="outline" className="mt-6">See pricing</SiteButton>
-      </section>
 
-      {/* 7. Final call to action */}
+      {/* 6. Final call to action */}
       <CtaBand title="Ready to stop chasing rent in notebooks?">
         <SiteButton to="/register" variant="gold">Get started</SiteButton>
       </CtaBand>

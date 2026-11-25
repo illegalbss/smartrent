@@ -98,7 +98,7 @@ export default function Features() {
 
       <CtaBand title="Ready to get started?">
         <SiteButton to="/register" variant="gold">Get started</SiteButton>
-        <SiteButton to="/pricing" variant="outlineLight">See pricing</SiteButton>
+        <SiteButton to="/login" variant="outlineLight">Log in</SiteButton>
       </CtaBand>
     </SitePage>
   );
