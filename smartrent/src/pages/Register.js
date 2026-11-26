@@ -53,28 +53,30 @@ export default function Register() {
 
   return (
     <AuthLayout tagline="Create a landlord account to manage properties and track rent payments.">
-      <h1 className="text-2xl font-extrabold text-ink-900">Create Your Landlord Account</h1>
-      <p className="mt-1.5 text-sm text-ink-500">Join RentaFlow today</p>
+      <p className="m-0 text-xs font-bold uppercase tracking-[0.14em] text-gold-700">For landlords</p>
+      <h1 className="m-0 mt-1.5 font-display text-[30px] font-bold leading-tight text-site-text">Create your account</h1>
+      <p className="m-0 mt-1.5 text-sm text-site-muted">It takes about a minute. You can add your properties straight after.</p>
 
       <form className="mt-6" onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label className="mb-1.5 block text-sm font-semibold text-ink-700">Registering as</label>
+          <span className="mb-1.5 block text-sm font-semibold text-ink-700">Registering as</span>
           <div className="grid grid-cols-2 gap-2">
             {ACCOUNT_TYPES.map((t) => (
               <button
                 type="button"
                 key={t.value}
                 onClick={() => setForm((f) => ({ ...f, accountType: t.value }))}
-                className={`rounded-xl border px-3 py-2.5 text-left transition ${
-                  form.accountType === t.value ? "border-brand-500 bg-brand-50" : "border-ink-200 hover:border-brand-300"
+                aria-pressed={form.accountType === t.value}
+                className={`min-h-[64px] rounded-xl border-[1.5px] px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 ${
+                  form.accountType === t.value ? "border-brand-700 bg-[#FBF3E3]" : "border-site-border hover:border-brand-300"
                 }`}
               >
                 <span className={`block text-sm font-bold ${form.accountType === t.value ? "text-brand-700" : "text-ink-800"}`}>{t.label}</span>
-                <span className="block text-xs text-ink-400">{t.sub}</span>
+                <span className="block text-xs text-site-muted">{t.sub}</span>
               </button>
             ))}
           </div>
-          <p className="mt-1.5 text-xs text-ink-400">Used later when you set up payouts — you can change this anytime.</p>
+          <p className="mt-1.5 text-xs text-site-muted">You can change this later.</p>
         </div>
 
         <FormField
@@ -134,19 +136,19 @@ export default function Register() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-xl bg-brand-500 py-3.5 text-sm font-bold text-white shadow-card transition hover:bg-brand-600 disabled:opacity-60"
+          className="mt-2 min-h-[50px] w-full rounded-xl bg-brand-700 text-[15px] font-bold text-white shadow-[0_8px_20px_rgba(92,16,16,0.25)] transition hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 disabled:opacity-60 motion-safe:enabled:hover:-translate-y-0.5"
         >
-          {submitting ? "Creating account…" : "Register"}
+          {submitting ? "Creating account…" : "Create account"}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-ink-500">
+      <p className="mt-6 text-center text-sm text-site-muted">
         Already have an account?{" "}
-        <Link to="/login" className="font-semibold text-brand-600 hover:text-brand-700">
-          Login here
+        <Link to="/login" className="font-semibold text-brand-700 underline-offset-2 hover:underline">
+          Log in
         </Link>
       </p>
-      <p className="mt-2 text-center text-xs text-ink-400">
+      <p className="mt-3 rounded-xl bg-[#FBF3E3] px-3 py-2.5 text-center text-xs leading-relaxed text-[#5A4100]">
         Secretaries and Tenants don't register here — a landlord sends an invite link to set up those accounts.
       </p>
     </AuthLayout>

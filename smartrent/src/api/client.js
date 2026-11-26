@@ -46,6 +46,12 @@ async function request(path, { method = "GET", body } = {}) {
 
   const json = await res.json().catch(() => null);
   if (!res.ok || !json || json.success === false) {
+    // This login was ended (e.g. "Log out of all devices" on another phone,
+    // or a password reset): drop it and go to the login page.
+    if (res.status === 401 && json?.code === "SESSION_ENDED" && getToken()) {
+      setToken(null);
+      if (!window.location.pathname.startsWith("/login")) window.location.assign("/login?ended=1");
+    }
     const message = json?.error || `Request failed (${res.status})`;
     throw new Error(message);
   }

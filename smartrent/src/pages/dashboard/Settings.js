@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { FaUser, FaEnvelope, FaPhone, FaLock, FaCheckCircle, FaSearch, FaSyncAlt } from "react-icons/fa";
+import { FaUser, FaEnvelope, FaPhone, FaLock, FaCheckCircle, FaSearch, FaSyncAlt, FaSignOutAlt } from "react-icons/fa";
 import DashboardShell from "../../components/dashboard/DashboardShell";
 import FormField from "../../components/FormField";
+import HelpBox from "../../components/dashboard/HelpBox";
+import { hasSupportContact } from "../../config/support";
 import Toggle from "../../components/Toggle";
 import { useAuth } from "../../context/AuthContext";
 import { isUpdateAvailable, refreshApp } from "../../utils/appUpdate";
@@ -30,7 +32,20 @@ function Banner({ message }) {
 }
 
 export default function Settings({ navItems }) {
-  const { user, updateProfile, changePassword } = useAuth();
+  const { user, isStaff, updateProfile, changePassword, logoutEverywhere } = useAuth();
+  const [devicesStep, setDevicesStep] = useState("idle"); // idle | confirm | working | done
+  const [devicesError, setDevicesError] = useState("");
+
+  async function handleLogoutEverywhere() {
+    setDevicesStep("working");
+    setDevicesError("");
+    const result = await logoutEverywhere();
+    if (result.ok) setDevicesStep("done");
+    else {
+      setDevicesError(result.error);
+      setDevicesStep("idle");
+    }
+  }
 
   const isTenant = user.role === "tenant";
   const [profile, setProfile] = useState({ fullName: user.fullName, phone: user.phone || "", email: user.email || "" });
@@ -196,6 +211,52 @@ export default function Settings({ navItems }) {
             </button>
           </form>
         </Card>
+
+        <Card title="Logged-in Devices">
+          <p className="text-sm text-ink-500">
+            Lost a phone, or logged in on someone else's computer? Log out of every other device. You'll stay logged in on this one.
+          </p>
+          {devicesStep === "done" && (
+            <p className="mt-3 flex items-center gap-2 rounded-xl bg-[#E3F2E7] px-4 py-2.5 text-sm font-medium text-[#1F6B3A]">
+              <FaCheckCircle size={13} aria-hidden="true" /> Done. Every other device has been logged out.
+            </p>
+          )}
+          {devicesError && <p className="mt-3 rounded-xl bg-[#FBE6E6] px-4 py-2.5 text-sm font-medium text-[#8A1C1C]">{devicesError}</p>}
+          {devicesStep === "confirm" ? (
+            <div className="mt-4 rounded-xl border border-[#F0C9C9] bg-[#FFF7F7] p-4">
+              <p className="m-0 text-sm font-semibold text-[#8A1C1C]">Log out of all other devices now?</p>
+              <p className="m-0 mt-1 text-xs text-ink-500">Anyone using this account elsewhere will need the password to log in again.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  onClick={handleLogoutEverywhere}
+                  className="min-h-[44px] rounded-xl bg-[#8A1C1C] px-4 text-sm font-bold text-white hover:bg-[#721616]"
+                >
+                  Yes, log them out
+                </button>
+                <button
+                  onClick={() => setDevicesStep("idle")}
+                  className="min-h-[44px] rounded-xl border border-ink-200 bg-white px-4 text-sm font-bold text-ink-700 hover:bg-ink-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setDevicesStep("confirm")}
+              disabled={devicesStep === "working"}
+              className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-xl border-[1.5px] border-[#8A1C1C] px-4 text-sm font-bold text-[#8A1C1C] hover:bg-[#FFF7F7] disabled:opacity-60"
+            >
+              <FaSignOutAlt size={12} aria-hidden="true" /> {devicesStep === "working" ? "Logging out…" : "Log out of all other devices"}
+            </button>
+          )}
+        </Card>
+
+        {isStaff && hasSupportContact && (
+          <Card title="Help and Support">
+            <HelpBox />
+          </Card>
+        )}
 
         <Card title="App Updates">
           <p className="text-sm text-ink-500">

@@ -46,7 +46,7 @@ export default function AcceptInvite() {
 
   return (
     <AuthLayout tagline="Set up your account to manage tenancies, payments, and documents online.">
-      <h1 className="text-2xl font-extrabold text-ink-900">Welcome</h1>
+      <h1 className="font-display text-[30px] font-bold leading-tight text-site-text">Welcome</h1>
       <p className="mt-1.5 text-sm text-ink-500">
         Set a password to activate your {role === "secretary" ? "secretary" : "tenant"} account.
       </p>
@@ -86,7 +86,7 @@ export default function AcceptInvite() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-xl bg-brand-500 py-3.5 text-sm font-bold text-white shadow-card transition hover:bg-brand-600 disabled:opacity-60"
+          className="w-full rounded-xl bg-brand-700 py-3.5 text-[15px] font-bold text-white shadow-[0_8px_20px_rgba(92,16,16,0.25)] transition hover:bg-brand-800 disabled:opacity-60"
         >
           {submitting ? "Activating…" : "Activate Account"}
         </button>

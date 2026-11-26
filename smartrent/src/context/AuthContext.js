@@ -127,6 +127,17 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // Ends every other login of this account; this device gets a fresh token.
+  async function logoutEverywhere() {
+    try {
+      const { data } = await api.post("/auth/logout-all");
+      setToken(data.token);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  }
+
   const isStaff = user?.role === "landlord" || user?.role === "secretary";
   const isSuperAdmin = user?.role === "superadmin";
 
@@ -143,6 +154,7 @@ export function AuthProvider({ children }) {
         logout,
         updateProfile,
         changePassword,
+        logoutEverywhere,
       }}
     >
       {children}

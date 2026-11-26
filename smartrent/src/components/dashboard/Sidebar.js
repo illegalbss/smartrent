@@ -3,6 +3,8 @@ import { NavLink } from "react-router-dom";
 import { FaBars, FaTimes, FaSignOutAlt } from "react-icons/fa";
 import { LogoMark } from "../site/SiteLogo";
 import { useAuth } from "../../context/AuthContext";
+import HelpBox from "./HelpBox";
+import { hasSupportContact } from "../../config/support";
 import { complaintsApi } from "../../api/complaints";
 
 export default function Sidebar({ navItems }) {
@@ -62,6 +64,11 @@ export default function Sidebar({ navItems }) {
         })}
       </nav>
 
+      {isStaff && hasSupportContact && (
+        <div className="px-4 pb-3">
+          <HelpBox dark />
+        </div>
+      )}
       <div className="border-t border-white/10 px-4 pb-4 pt-3">
         <button
           onClick={logout}

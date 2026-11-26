@@ -49,11 +49,11 @@ export default function ResetPassword() {
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-50 text-brand-600">
             <FaCheckCircle size={30} />
           </div>
-          <h1 className="mt-5 text-2xl font-extrabold text-ink-900">Password updated</h1>
+          <h1 className="mt-5 font-display text-[30px] font-bold leading-tight text-site-text">Password updated</h1>
           <p className="mt-2 max-w-xs text-sm leading-relaxed text-ink-500">Your password has been changed successfully.</p>
           <Link
             to="/login"
-            className="mt-8 w-full rounded-xl bg-brand-500 py-3.5 text-center text-sm font-bold text-white shadow-card transition hover:bg-brand-600"
+            className="mt-8 w-full rounded-xl bg-brand-700 py-3.5 text-center text-[15px] font-bold text-white shadow-[0_8px_20px_rgba(92,16,16,0.25)] transition hover:bg-brand-800"
           >
             Go to Login
           </Link>
@@ -64,7 +64,7 @@ export default function ResetPassword() {
 
   return (
     <AuthLayout tagline="Choose a new password to get back to managing your rentals.">
-      <h1 className="text-2xl font-extrabold text-ink-900">Set a New Password</h1>
+      <h1 className="font-display text-[30px] font-bold leading-tight text-site-text">Set a New Password</h1>
       <p className="mt-1.5 text-sm text-ink-500">Enter and confirm your new password below.</p>
 
       {!token && (
@@ -102,7 +102,7 @@ export default function ResetPassword() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-xl bg-brand-500 py-3.5 text-sm font-bold text-white shadow-card transition hover:bg-brand-600 disabled:opacity-60"
+          className="w-full rounded-xl bg-brand-700 py-3.5 text-[15px] font-bold text-white shadow-[0_8px_20px_rgba(92,16,16,0.25)] transition hover:bg-brand-800 disabled:opacity-60"
         >
           {submitting ? "Saving…" : "Update Password"}
         </button>

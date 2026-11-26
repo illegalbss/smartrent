@@ -126,7 +126,8 @@ async function resetPassword(req, res, next) {
     if (!account?.passwordHash || passwordFingerprint(account.passwordHash) !== payload.fp) return invalid();
 
     const passwordHash = await bcrypt.hash(password, 10);
-    await model.update({ where: { id: account.id }, data: { passwordHash } });
+    // A reset (often after a lost/stolen phone) also logs out every device.
+    await model.update({ where: { id: account.id }, data: { passwordHash, sessionsValidAfter: new Date() } });
 
     res.json({ success: true, data: { message: "Password updated. You can now log in.", role: payload.role } });
   } catch (err) {

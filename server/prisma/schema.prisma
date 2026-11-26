@@ -120,11 +120,13 @@ enum BillingTransactionStatus {
 // A single Super Admin (app owner) account type — separate login from
 // Landlord/Secretary/Tenant, used only to manage the platform itself.
 model SuperAdmin {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id                 String    @id @default(cuid())
+  name               String
+  email              String    @unique
+  passwordHash       String    @map("password_hash")
+  // Log out of all devices: login tokens issued before this are refused.
+  sessionsValidAfter DateTime? @map("sessions_valid_after")
+  createdAt          DateTime  @default(now()) @map("created_at")
 
   @@map("super_admins")
 }
@@ -223,6 +225,8 @@ model Landlord {
   name                     String
   email                    String             @unique
   passwordHash             String             @map("password_hash")
+  // Log out of all devices: login tokens issued before this are refused.
+  sessionsValidAfter       DateTime?          @map("sessions_valid_after")
   phone                    String?
   planId                   String?            @map("plan_id")
   subscriptionStatus       SubscriptionStatus @default(ACTIVE) @map("subscription_status")
@@ -270,16 +274,18 @@ model Landlord {
 
 // Secretary/Accountant staff account, scoped to one landlord's portfolio.
 model Secretary {
-  id               String    @id @default(cuid())
-  landlordId       String    @map("landlord_id")
-  name             String
-  email            String    @unique
-  phone            String?
-  passwordHash     String?   @map("password_hash")
-  inviteToken      String?   @unique @map("invite_token")
-  inviteAcceptedAt DateTime? @map("invite_accepted_at")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
+  id                 String    @id @default(cuid())
+  landlordId         String    @map("landlord_id")
+  name               String
+  email              String    @unique
+  phone              String?
+  passwordHash       String?   @map("password_hash")
+  // Log out of all devices: login tokens issued before this are refused.
+  sessionsValidAfter DateTime? @map("sessions_valid_after")
+  inviteToken        String?   @unique @map("invite_token")
+  inviteAcceptedAt   DateTime? @map("invite_accepted_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
   landlord Landlord @relation(fields: [landlordId], references: [id], onDelete: Cascade)
 
@@ -331,31 +337,33 @@ model Room {
 // next-of-kin fields are only meaningful for RESIDENTIAL_TENANT. The UI
 // shows/requires the relevant subset based on occupantType.
 model Tenant {
-  id               String       @id @default(cuid())
-  landlordId       String       @map("landlord_id")
-  roomId           String?      @map("room_id")
-  occupantType     OccupantType @default(RESIDENTIAL_TENANT) @map("occupant_type")
-  name             String
+  id                 String       @id @default(cuid())
+  landlordId         String       @map("landlord_id")
+  roomId             String?      @map("room_id")
+  occupantType       OccupantType @default(RESIDENTIAL_TENANT) @map("occupant_type")
+  name               String
   // Optional — some tenants don't use email. Without one they can't log in
   // (no invite is issued) until staff add an email later.
-  email            String?      @unique
-  phone            String?
-  photoUrl         String?      @map("photo_url")
-  passwordHash     String?      @map("password_hash")
-  inviteToken      String?      @unique @map("invite_token")
-  inviteAcceptedAt DateTime?    @map("invite_accepted_at")
-  dateCommencement DateTime?    @map("date_commencement")
-  dateExpiration   DateTime?    @map("date_expiration")
-  dateRenewal      DateTime?    @map("date_renewal")
-  securityDeposit  Decimal?     @map("security_deposit") @db.Decimal(12, 2)
-  businessName     String?      @map("business_name")
-  cacNumber        String?      @map("cac_number")
-  nextOfKinName    String?      @map("next_of_kin_name")
-  nextOfKinPhone   String?      @map("next_of_kin_phone")
-  registeredById   String?      @map("registered_by_id")
-  registeredByRole ActorRole?   @map("registered_by_role")
-  createdAt        DateTime     @default(now()) @map("created_at")
-  updatedAt        DateTime     @updatedAt @map("updated_at")
+  email              String?      @unique
+  phone              String?
+  photoUrl           String?      @map("photo_url")
+  passwordHash       String?      @map("password_hash")
+  // Log out of all devices: login tokens issued before this are refused.
+  sessionsValidAfter DateTime?    @map("sessions_valid_after")
+  inviteToken        String?      @unique @map("invite_token")
+  inviteAcceptedAt   DateTime?    @map("invite_accepted_at")
+  dateCommencement   DateTime?    @map("date_commencement")
+  dateExpiration     DateTime?    @map("date_expiration")
+  dateRenewal        DateTime?    @map("date_renewal")
+  securityDeposit    Decimal?     @map("security_deposit") @db.Decimal(12, 2)
+  businessName       String?      @map("business_name")
+  cacNumber          String?      @map("cac_number")
+  nextOfKinName      String?      @map("next_of_kin_name")
+  nextOfKinPhone     String?      @map("next_of_kin_phone")
+  registeredById     String?      @map("registered_by_id")
+  registeredByRole   ActorRole?   @map("registered_by_role")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
 
   landlord             Landlord              @relation(fields: [landlordId], references: [id], onDelete: Cascade)
   room                 Room?                 @relation(fields: [roomId], references: [id], onDelete: SetNull)
@@ -581,4 +589,17 @@ model PaystackTransaction {
   @@index([tenantId])
   @@index([landlordId])
   @@map("paystack_transactions")
+}
+
+// Which bell notifications each user has marked read, so it follows them
+// across phones and computers. role = landlord | secretary | tenant.
+model NotificationRead {
+  id        String   @id @default(cuid())
+  role      String
+  userId    String   @map("user_id")
+  readIds   Json     @default("[]") @map("read_ids")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([role, userId])
+  @@map("notification_reads")
 }

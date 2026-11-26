@@ -336,6 +336,11 @@ const RULES = [
     },
   }),
 
+  R("POST", "^/auth/logout-all$", {
+    action: "LOGGED_OUT_EVERYWHERE",
+    category: "account",
+    summary: () => "Logged out of all other devices",
+  }),
   R("PUT", "^/(landlord|secretary)/profile$", {
     action: "PROFILE_UPDATED",
     category: "account",

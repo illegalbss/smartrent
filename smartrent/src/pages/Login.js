@@ -42,8 +42,14 @@ export default function Login() {
 
   return (
     <AuthLayout tagline="Manage properties, track payments, and stay connected — all in one place.">
-      <h1 className="text-2xl font-extrabold text-ink-900">Welcome Back!</h1>
+      <h1 className="font-display text-[30px] font-bold leading-tight text-site-text">Welcome Back!</h1>
       <p className="mt-1.5 text-sm text-ink-500">Login to your account</p>
+
+      {new URLSearchParams(location.search).get("ended") && (
+        <p className="mt-4 rounded-xl bg-[#FFF1CC] px-4 py-2.5 text-sm font-medium text-[#6B4E00]">
+          You were logged out on this device. Please log in again.
+        </p>
+      )}
 
       <form className="mt-6" onSubmit={handleSubmit}>
         <RoleSelector roles={ROLES} value={role} onChange={setRole} label="Login as" />
@@ -78,7 +84,7 @@ export default function Login() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-xl bg-brand-500 py-3.5 text-sm font-bold text-white shadow-card transition hover:bg-brand-600 disabled:opacity-60"
+          className="w-full rounded-xl bg-brand-700 py-3.5 text-[15px] font-bold text-white shadow-[0_8px_20px_rgba(92,16,16,0.25)] transition hover:bg-brand-800 disabled:opacity-60"
         >
           {submitting ? "Logging in…" : "Login"}
         </button>

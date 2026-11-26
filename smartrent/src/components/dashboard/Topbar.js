@@ -106,11 +106,35 @@ export default function Topbar({ title, subtitle }) {
   const isRead = (item) => readIds.has(itemKey(item));
   const unreadCount = items.filter((i) => !isRead(i)).length;
 
+  // Read marks are also saved to the account, so they follow the user to
+  // other devices. This device's own list is merged in on first load.
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    let cancelled = false;
+    api
+      .get("/notifications/read")
+      .then((res) => {
+        const serverIds = Array.isArray(res?.data?.ids) ? res.data.ids : null;
+        if (cancelled || !serverIds) return;
+        setReadIds((local) => {
+          const merged = new Set([...serverIds, ...local]);
+          saveRead(user, merged);
+          if (merged.size > serverIds.length) api.put("/notifications/read", { ids: [...merged] }).catch(() => {});
+          return merged;
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   function markRead(list) {
     const next = new Set(readIds);
     list.forEach((i) => next.add(itemKey(i)));
     setReadIds(next);
     saveRead(user, next);
+    api.put("/notifications/read", { ids: [...next] }).catch(() => {});
   }
   const wrapperRef = useRef(null);
   const today = new Date().toLocaleDateString("en-NG", { year: "numeric", month: "long", day: "numeric" });

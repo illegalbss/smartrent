@@ -1,6 +1,29 @@
 const { verifyToken } = require("../utils/jwt");
 const prisma = require("../config/prisma");
 
+// "Log out of all devices" stores a cut-off time on the account; tokens
+// issued before it are refused. Looked up per request with a short cache.
+const MODEL = { landlord: "landlord", secretary: "secretary", tenant: "tenant", superadmin: "superAdmin" };
+const cutoffCache = new Map();
+const CUTOFF_TTL_MS = 30 * 1000;
+
+async function sessionCutoff(role, id) {
+  const key = `${role}:${id}`;
+  const hit = cutoffCache.get(key);
+  if (hit && Date.now() - hit.at < CUTOFF_TTL_MS) return hit.value;
+  const model = MODEL[role];
+  if (!model) return null;
+  const row = await prisma[model].findUnique({ where: { id }, select: { sessionsValidAfter: true } });
+  // A deleted account has no valid sessions at all.
+  const value = row ? row.sessionsValidAfter : new Date(8.64e15);
+  cutoffCache.set(key, { value, at: Date.now() });
+  return value;
+}
+
+function forgetSessionCutoff(role, id) {
+  cutoffCache.delete(`${role}:${id}`);
+}
+
 function authenticate(req, res, next) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
@@ -14,13 +37,20 @@ function authenticate(req, res, next) {
     // Special-purpose tokens (e.g. password reset links) are signed with the
     // same secret but are never valid as a login session.
     if (payload.purpose || !payload.id) {
-      return res.status(401).json({ success: false, error: "Invalid or expired token." });
+      return res.status(401).json({ success: false, error: "Invalid or expired token.", code: "SESSION_ENDED" });
     }
     req.auth = payload;
-    next();
   } catch (err) {
-    return res.status(401).json({ success: false, error: "Invalid or expired token." });
+    return res.status(401).json({ success: false, error: "Invalid or expired token.", code: "SESSION_ENDED" });
   }
+  sessionCutoff(req.auth.role, req.auth.id)
+    .then((cutoff) => {
+      if (cutoff && req.auth.iat < Math.floor(new Date(cutoff).getTime() / 1000)) {
+        return res.status(401).json({ success: false, error: "You were logged out. Please log in again.", code: "SESSION_ENDED" });
+      }
+      next();
+    })
+    .catch(next);
 }
 
 function requireAuth(requiredRole) {
@@ -73,4 +103,4 @@ function requireStaff() {
   };
 }
 
-module.exports = { requireAuth, requireStaff };
+module.exports = { requireAuth, requireStaff, forgetSessionCutoff, MODEL };
