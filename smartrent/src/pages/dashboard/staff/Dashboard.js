@@ -64,27 +64,45 @@ function timeAgo(dateStr) {
 }
 
 // --- Headline cards ---------------------------------------------------------
-function KpiCard({ to, icon: Icon, label, value, title, tone = "plain" }) {
+function KpiCard({ to, icon: Icon, label, value, detail, tone = "plain" }) {
   const tones = {
-    plain: { card: "border-[#EFE6D6] bg-white", icon: "text-brand-700", value: "text-site-text", chev: "bg-[#F6E7BC] text-brand-700" },
-    green: { card: "border-[#EFE6D6] bg-white", icon: "text-[#1F6B3A]", value: "text-site-text", chev: "bg-[#E3F2E7] text-[#1F6B3A]" },
-    red: { card: "border-[#F2C9C9] bg-[#FDF1F1]", icon: "text-[#8A1C1C]", value: "text-[#8A1C1C]", chev: "bg-[#FBE6E6] text-[#8A1C1C]" },
+    plain: { card: "border-[#EFE6D6] bg-white", icon: "bg-[#F6E7BC] text-brand-700", value: "text-site-text", chev: "text-brand-700", bar: "bg-gold-500" },
+    green: { card: "border-[#EFE6D6] bg-white", icon: "bg-[#E3F2E7] text-[#1F6B3A]", value: "text-site-text", chev: "text-[#1F6B3A]", bar: "bg-[#1F6B3A]" },
+    red: { card: "border-[#F2C9C9] bg-[#FDF1F1]", icon: "bg-[#FBE6E6] text-[#8A1C1C]", value: "text-[#8A1C1C]", chev: "text-[#8A1C1C]", bar: "bg-[#8A1C1C]" },
   }[tone];
   return (
     <Link
       to={to}
-      className={`flex min-w-0 items-center gap-3.5 rounded-[18px] border p-4 transition-[transform,box-shadow] duration-200 hover:shadow-[0_10px_24px_rgba(60,10,10,0.10)] motion-safe:hover:-translate-y-0.5 ${tones.card} ${ring}`}
+      aria-label={`${label}: ${detail || value}`}
+      className={`group relative flex min-w-0 flex-col overflow-hidden rounded-[18px] border p-4 transition-[transform,box-shadow] duration-300 hover:shadow-[0_14px_30px_rgba(60,10,10,0.14)] motion-safe:hover:-translate-y-1 ${tones.card} ${ring}`}
     >
-      <Icon size={30} className={`shrink-0 ${tones.icon}`} aria-hidden="true" />
-      <div className="min-w-0 flex-1">
-        <div className="text-[13px] font-medium leading-tight text-site-muted">{label}</div>
-        <div className={`truncate font-display text-[24px] font-bold leading-tight ${tones.value}`} title={title}>
-          {value}
-        </div>
+      <div className="flex items-start justify-between gap-2">
+        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 motion-safe:group-hover:scale-110 ${tones.icon}`}>
+          <Icon size={20} aria-hidden="true" />
+        </span>
+        <FaChevronRight
+          size={12}
+          className={`mt-1 shrink-0 opacity-50 transition-[transform,opacity] duration-300 group-hover:opacity-100 motion-safe:group-hover:translate-x-1 ${tones.chev}`}
+          aria-hidden="true"
+        />
       </div>
-      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${tones.chev}`} aria-hidden="true">
-        <FaChevronRight size={11} />
-      </span>
+      <div className="mt-3 text-[13px] font-medium leading-snug text-site-muted">{label}</div>
+      <div className={`mt-0.5 break-words font-display text-[clamp(22px,2.1vw,28px)] font-bold leading-tight tabular-nums ${tones.value}`}>{value}</div>
+      {detail && (
+        // The exact figure slides up on hover/keyboard focus; on touch
+        // screens (no hover) it is always shown.
+        <div
+          className={`grid grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity] duration-300 group-hover:grid-rows-[1fr] group-hover:opacity-100 group-focus-visible:grid-rows-[1fr] group-focus-visible:opacity-100 [@media(hover:none)]:grid-rows-[1fr] [@media(hover:none)]:opacity-100`}
+        >
+          <div className="overflow-hidden">
+            <div className="pt-1.5 text-[13px] font-semibold leading-snug text-site-text [overflow-wrap:anywhere]">{detail}</div>
+          </div>
+        </div>
+      )}
+      <span
+        className={`absolute inset-x-0 bottom-0 h-1 origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100 ${tones.bar}`}
+        aria-hidden="true"
+      />
     </Link>
   );
 }
@@ -589,16 +607,18 @@ export default function StaffDashboard() {
 
       {data && (
         <div className="space-y-4">
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,160px),1fr))] gap-3 sm:gap-4">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,140px),1fr))] gap-3 sm:gap-4">
             <KpiCard to="/dashboard/staff/properties" icon={FaHome} label="Total Properties" value={data.overall.totalProperties} />
             <KpiCard to="/dashboard/staff/properties" icon={FaDoorOpen} label="Total Units" value={data.overall.totalRooms} tone="green" />
-            <KpiCard to="/dashboard/staff/tenants" icon={FaUsers} label="Occupied / Vacant" value={`${data.overall.occupiedRooms} / ${data.overall.vacantRooms}`} />
+            <KpiCard to="/dashboard/staff/tenants" icon={FaUsers} label="Occupied / Vacant" value={`${data.overall.occupiedRooms} / ${data.overall.vacantRooms}`}
+              detail={`${data.overall.occupiedRooms} occupied, ${data.overall.vacantRooms} vacant`}
+            />
             <KpiCard
               to="/dashboard/staff/payments"
               icon={FaMoneyBillWave}
               label="Rent Collected This Year"
               value={formatNairaCompact(data.finance.collectedThisYear || 0)}
-              title={formatNaira(data.finance.collectedThisYear || 0)}
+              detail={`Exactly ${formatNaira(data.finance.collectedThisYear || 0)}`}
               tone="green"
             />
             <KpiCard
@@ -606,7 +626,7 @@ export default function StaffDashboard() {
               icon={FaExclamationCircle}
               label="Outstanding"
               value={formatNairaCompact((properties || []).reduce((s, p) => s + Number(p.outstanding || 0), 0))}
-              title={formatNaira((properties || []).reduce((s, p) => s + Number(p.outstanding || 0), 0))}
+              detail={`Exactly ${formatNaira((properties || []).reduce((s, p) => s + Number(p.outstanding || 0), 0))}`}
               tone="red"
             />
           </div>
